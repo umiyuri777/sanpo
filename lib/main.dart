@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       // home: const HomeView(title: title),
-      home: const TableCalendarView(),
+      home: const MapView(),
     );
   }
 }
