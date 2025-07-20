@@ -107,7 +107,7 @@ class _MapView extends State<MapView> {
           if (_currentLocation != null)
             CurrentLocationLayer(
               style: const LocationMarkerStyle(
-                markerSize: const Size(24, 24),
+                markerSize: const Size(20, 20),
                 markerDirection: MarkerDirection.heading,
                 showAccuracyCircle: true,
                 accuracyCircleColor: Colors.blue,
