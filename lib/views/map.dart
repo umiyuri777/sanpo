@@ -20,6 +20,8 @@ class _MapView extends State<MapView> {
   Future<void> _requestLocationPermission() async {
     try {
       await RequestLocationPermission.request(location);
+      // 方位センサーを有効化
+      await location.enableBackgroundMode(enable: false);
       print('位置情報の権限を要求しました');
     } catch (e) {
       print('位置情報の権限要求でエラーが発生しました: $e');
@@ -99,21 +101,16 @@ class _MapView extends State<MapView> {
         ),
         children: [
           TileLayer(
-            urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
             userAgentPackageName: 'com.example.sanpo',
           ),
           if (_currentLocation != null)
             CurrentLocationLayer(
               style: const LocationMarkerStyle(
-                marker: DefaultLocationMarker(
-                  child: Icon(
-                    Icons.my_location,
-                    color: Colors.blue,
-                    size: 14,
-                  ),
-                ),
-                markerSize: const Size(40, 40),
+                markerSize: const Size(24, 24),
                 markerDirection: MarkerDirection.heading,
+                showAccuracyCircle: true,
+                accuracyCircleColor: Colors.blue,
               ),
             ),
         ],
