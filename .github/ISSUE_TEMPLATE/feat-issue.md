@@ -3,7 +3,7 @@ name: feat issue
 about: 機能追加用issue
 title: "[Feat]: "
 labels: ''
-assignees: ''
+assignees: umiyuri777
 
 ---
 
