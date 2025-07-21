@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
-class TableCalendarView extends StatefulWidget {
-  const TableCalendarView({super.key});
+class CalendarView extends StatefulWidget {
+  const CalendarView({super.key});
 
   @override
-  State<TableCalendarView> createState() => _TableCalendarView();
+  State<CalendarView> createState() => _CalendarView();
 }
 
-class _TableCalendarView extends State<TableCalendarView>{
+class _CalendarView extends State<CalendarView>{
   DateTime _selectedDay = DateTime.now();
 
 
