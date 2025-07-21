@@ -105,14 +105,7 @@ class _MapView extends State<MapView> {
             userAgentPackageName: 'com.example.sanpo',
           ),
           if (_currentLocation != null)
-            CurrentLocationLayer(
-              style: const LocationMarkerStyle(
-                markerSize: const Size(24, 24),
-                markerDirection: MarkerDirection.heading,
-                showAccuracyCircle: true,
-                accuracyCircleColor: Colors.blue,
-              ),
-            ),
+            const CurrentLocationLayer(),
         ],
       ),
     );

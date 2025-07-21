@@ -19,7 +19,8 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       // home: const HomeView(title: title),
-      home: const MapView(),
+      // home: const MapView(),
+      home: const CalendarView(),
     );
   }
 }

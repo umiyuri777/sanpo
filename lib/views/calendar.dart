@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:sanpo/import.dart';
 
-class TableCalendarView extends StatefulWidget {
-  const TableCalendarView({super.key});
+class CalendarView extends StatefulWidget {
+  const CalendarView({super.key});
 
   @override
-  State<TableCalendarView> createState() => _TableCalendarView();
+  State<CalendarView> createState() => _CalendarView();
 }
 
-class _TableCalendarView extends State<TableCalendarView>{
+class _CalendarView extends State<CalendarView>{
   DateTime _selectedDay = DateTime.now();
 
 
@@ -22,13 +23,20 @@ class _TableCalendarView extends State<TableCalendarView>{
         firstDay: DateTime.utc(2010, 1, 1),
         lastDay: DateTime.utc(2030, 1, 1),
         focusedDay: DateTime.now(),
-        selectedDayPredicate: (day) {
-          return isSameDay(_selectedDay, day);
-        },
+
+        // // 日付が選択された時の処理
+        // selectedDayPredicate: (day) {
+        //   return isSameDay(_selectedDay, day);
+        // },
+
+        // 日付が選択された時の処理
         onDaySelected: (selectedDay, focusedDay) {
-          setState(() {
-            _selectedDay = selectedDay;
-          });
+          // setState(() {
+          //   _selectedDay = selectedDay;
+          // });
+
+          Navigator.push(context, MaterialPageRoute(builder: (context) => MapView()));
+
         },
         availableCalendarFormats: const {
           CalendarFormat.month: 'Month',
