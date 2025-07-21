@@ -16,6 +16,7 @@ class _MapView extends State<MapView> {
   LatLng? _currentLocation;
   final location = Location();
   bool _isLoading = true;
+  final MapController _mapController = MapController(); // MapControllerを追加
 
   Future<void> _requestLocationPermission() async {
     try {
@@ -87,6 +88,7 @@ class _MapView extends State<MapView> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: FlutterMap(
+        mapController: _mapController, // mapControllerを渡す
         options: const MapOptions(
           // 名古屋駅の緯度経度です。
           initialCenter: LatLng(35.170694, 136.881637),
@@ -104,9 +106,20 @@ class _MapView extends State<MapView> {
             urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
             userAgentPackageName: 'com.example.sanpo',
           ),
-          if (_currentLocation != null)
-            const CurrentLocationLayer(),
+          if (_currentLocation != null) const CurrentLocationLayer(),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _currentLocation == null
+            ? null
+            : () {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _mapController.move(
+                      _currentLocation!, _mapController.camera.zoom);
+                });
+              },
+        child: const Icon(Icons.my_location),
+        tooltip: '現在地に移動',
       ),
     );
   }
