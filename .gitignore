@@ -44,3 +44,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# CMake build artifacts (contains local paths)
+/android/app/.cxx/
+
+!*.gitignore
