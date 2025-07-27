@@ -18,6 +18,18 @@ class _CalendarView extends State<CalendarView>{
     return Scaffold(
       appBar: AppBar(
         title: const Text('カレンダー'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.bug_report),
+            tooltip: 'デバッグ情報',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const DebugLocationsView()),
+              );
+            },
+          ),
+        ],
       ),
       body: TableCalendar(
         firstDay: DateTime.utc(2010, 1, 1),

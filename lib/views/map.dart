@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:sanpo/import.dart';
-import 'package:location/location.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 
 class MapView extends StatefulWidget {
@@ -14,32 +13,9 @@ class MapView extends StatefulWidget {
 
 class _MapView extends State<MapView> {
   LatLng? _currentLocation;
-  final location = Location();
+  final LocationService _locationService = LocationService();
   bool _isLoading = true;
-  final MapController _mapController = MapController(); // MapControllerを追加
-
-  Future<void> _requestLocationPermission() async {
-    try {
-      await RequestLocationPermission.request(location);
-      // 方位センサーを有効化
-      await location.enableBackgroundMode(enable: false);
-      print('位置情報の権限を要求しました');
-    } catch (e) {
-      print('位置情報の権限要求でエラーが発生しました: $e');
-    }
-  }
-
-  void _getLocation() {
-    GetLocation.getPosition(location).then((value) {
-      print('位置情報を取得しました: ${value.latitude}, ${value.longitude}');
-      setState(() {
-        _currentLocation =
-            LatLng(value.latitude ?? 0.0, value.longitude ?? 0.0);
-      });
-    }).catchError((error) {
-      print('位置情報の取得でエラーが発生しました: $error');
-    });
-  }
+  final MapController _mapController = MapController();
 
   @override
   void initState() {
@@ -49,9 +25,13 @@ class _MapView extends State<MapView> {
 
   Future<void> _initializeLocation() async {
     try {
-      await _requestLocationPermission();
-      await Future.delayed(const Duration(seconds: 1)); // 権限要求後の待機
-      _getLocation();
+      final locationData = await _locationService.initializeAndGetLocation(
+        delayAfterPermission: 1000,
+      );
+      setState(() {
+        _currentLocation =
+            LatLng(locationData.latitude ?? 0.0, locationData.longitude ?? 0.0);
+      });
     } catch (e) {
       print('位置情報の初期化でエラーが発生しました: $e');
     } finally {
@@ -86,9 +66,21 @@ class _MapView extends State<MapView> {
       appBar: AppBar(
         title: const Text('散歩マップ'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.bug_report),
+            tooltip: 'デバッグ情報',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const DebugLocationsView()),
+              );
+            },
+          ),
+        ],
       ),
       body: FlutterMap(
-        mapController: _mapController, // mapControllerを渡す
+        mapController: _mapController,
         options: const MapOptions(
           // 名古屋駅の緯度経度です。
           initialCenter: LatLng(35.170694, 136.881637),
