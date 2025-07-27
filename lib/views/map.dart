@@ -16,11 +16,13 @@ class _MapView extends State<MapView> {
   final LocationService _locationService = LocationService();
   bool _isLoading = true;
   final MapController _mapController = MapController();
+  bool _isBackgroundServiceRunning = false;
 
   @override
   void initState() {
     super.initState();
     _initializeLocation();
+    _isBackgroundServiceRunning = _locationService.isBackgroundServiceRunning;
   }
 
   Future<void> _initializeLocation() async {
@@ -73,7 +75,8 @@ class _MapView extends State<MapView> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const DebugLocationsView()),
+                MaterialPageRoute(
+                    builder: (context) => const DebugLocationsView()),
               );
             },
           ),
@@ -92,7 +95,8 @@ class _MapView extends State<MapView> {
                 rotationThreshold: 10.0, // 回転のための閾値を高く設定
                 enableMultiFingerGestureRace: true, // 複数指ジェスチャーの競合を有効化
                 rotationWinGestures: MultiFingerGesture.rotate, // 回転のみに設定
-                pinchZoomWinGestures: MultiFingerGesture.pinchZoom, // ピンチズームのみに設定
+                pinchZoomWinGestures:
+                    MultiFingerGesture.pinchZoom, // ピンチズームのみに設定
               ),
             ),
             children: [
@@ -103,19 +107,53 @@ class _MapView extends State<MapView> {
               if (_currentLocation != null) const CurrentLocationLayer(),
             ],
           ),
-          Positioned(
-            top: 16,
-            right: 16,
-            child: ElevatedButton(
-              child: const Text('バックグラウンドサービスを開始'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                shape: const StadiumBorder(),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 50),
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _isBackgroundServiceRunning
+                      ? Colors.red
+                      : Colors.blue,
+                  foregroundColor: Colors.white,
+                  shape: const StadiumBorder(),
+                ),
+                onPressed: () async {
+                  if (_isBackgroundServiceRunning) {
+                    final success =
+                        await _locationService.stopBackgroundLocationService();
+                    if (success) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('バックグラウンドサービスを停止しました')),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('バックグラウンドサービスの停止に失敗しました')),
+                      );
+                    }
+                  } else {
+                    final success =
+                        await _locationService.startBackgroundLocationService();
+                    if (success) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('バックグラウンドサービスを開始しました')),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('バックグラウンドサービスの開始に失敗しました')),
+                      );
+                    }
+                  }
+                  setState(() {
+                    _isBackgroundServiceRunning =
+                        _locationService.isBackgroundServiceRunning;
+                  });
+                },
+                child: _isBackgroundServiceRunning
+                    ? const Text('Stop')
+                    : const Text('Start'),
               ),
-              onPressed: () {
-                _locationService.startBackgroundLocationService();
-              },
             ),
           ),
         ],
