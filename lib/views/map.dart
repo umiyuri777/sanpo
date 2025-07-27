@@ -16,11 +16,13 @@ class _MapView extends State<MapView> {
   final LocationService _locationService = LocationService();
   bool _isLoading = true;
   final MapController _mapController = MapController();
+  bool _isBackgroundServiceRunning = false;
 
   @override
   void initState() {
     super.initState();
     _initializeLocation();
+    _isBackgroundServiceRunning = _locationService.isBackgroundServiceRunning;
   }
 
   Future<void> _initializeLocation() async {
@@ -104,18 +106,48 @@ class _MapView extends State<MapView> {
             ],
           ),
           Positioned(
-            top: 16,
+            bottom: 16,
             right: 16,
             child: ElevatedButton(
-              child: const Text('バックグラウンドサービスを開始'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
                 shape: const StadiumBorder(),
               ),
-              onPressed: () {
-                _locationService.startBackgroundLocationService();
+              onPressed: () async {
+                if (_isBackgroundServiceRunning) {
+                  final success = await _locationService.stopBackgroundLocationService();
+                  if (success) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('バックグラウンドサービスを停止しました')),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('バックグラウンドサービスの停止に失敗しました')),
+                    );
+                  }
+                  setState(() {
+                    _isBackgroundServiceRunning = success;
+                  });
+                } else {
+                  final success = await _locationService.startBackgroundLocationService();
+                  if (success) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('バックグラウンドサービスを開始しました')),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('バックグラウンドサービスの開始に失敗しました')),
+                    );
+                  }
+                  setState(() {
+                    _isBackgroundServiceRunning = success;
+                  });
+                }
               },
+              child: _isBackgroundServiceRunning
+                  ? const Text('バックグラウンドサービスを停止')
+                  : const Text('バックグラウンドサービスを開始'),
             ),
           ),
         ],
