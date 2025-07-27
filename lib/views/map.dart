@@ -79,26 +79,45 @@ class _MapView extends State<MapView> {
           ),
         ],
       ),
-      body: FlutterMap(
-        mapController: _mapController,
-        options: const MapOptions(
-          // 名古屋駅の緯度経度です。
-          initialCenter: LatLng(35.170694, 136.881637),
-          initialZoom: 10.0,
-          interactionOptions: InteractionOptions(
-            // 拡大縮小と回転を分離
-            rotationThreshold: 10.0, // 回転のための閾値を高く設定
-            enableMultiFingerGestureRace: true, // 複数指ジェスチャーの競合を有効化
-            rotationWinGestures: MultiFingerGesture.rotate, // 回転のみに設定
-            pinchZoomWinGestures: MultiFingerGesture.pinchZoom, // ピンチズームのみに設定
-          ),
-        ),
+      body: Stack(
         children: [
-          TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.example.sanpo',
+          FlutterMap(
+            mapController: _mapController,
+            options: const MapOptions(
+              // 名古屋駅の緯度経度です。
+              initialCenter: LatLng(35.170694, 136.881637),
+              initialZoom: 10.0,
+              interactionOptions: InteractionOptions(
+                // 拡大縮小と回転を分離
+                rotationThreshold: 10.0, // 回転のための閾値を高く設定
+                enableMultiFingerGestureRace: true, // 複数指ジェスチャーの競合を有効化
+                rotationWinGestures: MultiFingerGesture.rotate, // 回転のみに設定
+                pinchZoomWinGestures: MultiFingerGesture.pinchZoom, // ピンチズームのみに設定
+              ),
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.example.sanpo',
+              ),
+              if (_currentLocation != null) const CurrentLocationLayer(),
+            ],
           ),
-          if (_currentLocation != null) const CurrentLocationLayer(),
+          Positioned(
+            top: 16,
+            right: 16,
+            child: ElevatedButton(
+              child: const Text('バックグラウンドサービスを開始'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                shape: const StadiumBorder(),
+              ),
+              onPressed: () {
+                _locationService.startBackgroundLocationService();
+              },
+            ),
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
