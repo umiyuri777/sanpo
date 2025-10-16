@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:sanpo/import.dart';
+import 'package:sanpo/database/database_helper.dart';
+import 'package:sanpo/models/location_record.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 
 class MapView extends StatefulWidget {
-  const MapView({super.key});
+  final DateTime? selectedDate;
+  
+  const MapView({super.key, this.selectedDate});
 
   @override
   State<MapView> createState() => _MapView();
@@ -14,15 +18,21 @@ class MapView extends StatefulWidget {
 class _MapView extends State<MapView> {
   LatLng? _currentLocation;
   final LocationService _locationService = LocationService();
+  final DatabaseHelper _databaseHelper = DatabaseHelper();
   bool _isLoading = true;
   final MapController _mapController = MapController();
   bool _isBackgroundServiceRunning = false;
+  List<LocationRecord> _selectedDateLocations = [];
+  List<LatLng> _routePoints = [];
 
   @override
   void initState() {
     super.initState();
     _initializeLocation();
     _isBackgroundServiceRunning = _locationService.isBackgroundServiceRunning;
+    if (widget.selectedDate != null) {
+      _loadSelectedDateLocations();
+    }
   }
 
   Future<void> _initializeLocation() async {
@@ -40,6 +50,57 @@ class _MapView extends State<MapView> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  /// 選択された日付の位置情報を読み込む
+  Future<void> _loadSelectedDateLocations() async {
+    if (widget.selectedDate == null) return;
+    
+    try {
+      // 選択された日の開始時刻（00:00:00）
+      final startOfDay = DateTime(
+        widget.selectedDate!.year,
+        widget.selectedDate!.month,
+        widget.selectedDate!.day,
+      );
+      
+      // 選択された日の終了時刻（23:59:59）
+      final endOfDay = DateTime(
+        widget.selectedDate!.year,
+        widget.selectedDate!.month,
+        widget.selectedDate!.day,
+        23,
+        59,
+        59,
+      );
+      
+      final locations = await _databaseHelper.getLocationRecordsByDateRange(
+        startOfDay,
+        endOfDay,
+      );
+      
+      // 時系列順にソート（古い順）
+      locations.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      
+      setState(() {
+        _selectedDateLocations = locations;
+        _routePoints = locations
+            .map((record) => LatLng(record.latitude, record.longitude))
+            .toList();
+      });
+      
+      // 位置情報がある場合は最初の地点に地図を移動
+      if (_routePoints.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _mapController.move(_routePoints.first, 15.0);
+        });
+      }
+      
+      print('${widget.selectedDate!.toString().split(' ')[0]}の位置情報を${locations.length}件読み込みました');
+      
+    } catch (e) {
+      print('選択された日付の位置情報の読み込みでエラーが発生しました: $e');
     }
   }
 
@@ -66,7 +127,9 @@ class _MapView extends State<MapView> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('散歩マップ'),
+        title: Text(widget.selectedDate != null 
+          ? '散歩マップ - ${widget.selectedDate!.year}/${widget.selectedDate!.month}/${widget.selectedDate!.day}'
+          : '散歩マップ'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           IconButton(
@@ -104,9 +167,93 @@ class _MapView extends State<MapView> {
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.example.sanpo',
               ),
+              // 選択した日付の経路を表示
+              if (_routePoints.isNotEmpty)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: _routePoints,
+                      color: Colors.blue,
+                      strokeWidth: 3.0,
+                      borderStrokeWidth: 6.0,
+                      borderColor: Colors.white,
+                    ),
+                  ],
+                ),
+              // 経路の開始点と終了点にマーカーを表示
+              if (_routePoints.isNotEmpty)
+                MarkerLayer(
+                  markers: [
+                    // 開始点（緑色）
+                    Marker(
+                      point: _routePoints.first,
+                      width: 30.0,
+                      height: 30.0,
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.play_arrow,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                    // 終了点（赤色）
+                    if (_routePoints.length > 1)
+                      Marker(
+                        point: _routePoints.last,
+                        width: 30.0,
+                        height: 30.0,
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.stop,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               if (_currentLocation != null) const CurrentLocationLayer(),
             ],
           ),
+          // 選択した日付の経路情報を表示
+          if (widget.selectedDate != null)
+            Positioned(
+              top: 10,
+              left: 10,
+              right: 10,
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${widget.selectedDate!.year}/${widget.selectedDate!.month}/${widget.selectedDate!.day}の散歩記録',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      if (_selectedDateLocations.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text('記録点数: ${_selectedDateLocations.length}点'),
+                        if (_selectedDateLocations.isNotEmpty)
+                          Text(
+                            '時間: ${_selectedDateLocations.first.timestamp.hour.toString().padLeft(2, '0')}:${_selectedDateLocations.first.timestamp.minute.toString().padLeft(2, '0')} - ${_selectedDateLocations.last.timestamp.hour.toString().padLeft(2, '0')}:${_selectedDateLocations.last.timestamp.minute.toString().padLeft(2, '0')}',
+                          ),
+                      ] else
+                        const Text('この日の記録はありません'),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
