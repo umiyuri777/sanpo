@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:math' as math;
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:sanpo/import.dart';
 import 'package:sanpo/database/database_helper.dart';
 import 'package:sanpo/models/location_record.dart';
-import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
+// removed unused flutter_map_location_marker import, using custom marker instead
+import 'package:location/location.dart';
+import 'package:flutter_compass/flutter_compass.dart';
+import 'package:sanpo/utils/location_data_provider.dart';
 
 class MapView extends StatefulWidget {
   final DateTime? selectedDate;
@@ -24,11 +29,17 @@ class _MapView extends State<MapView> {
   bool _isBackgroundServiceRunning = false;
   List<LocationRecord> _selectedDateLocations = [];
   List<LatLng> _routePoints = [];
+  StreamSubscription<LocationData>? _locationSubscription;
+  StreamSubscription<CompassEvent>? _compassSubscription;
+  double? _headingDegrees;
 
   @override
   void initState() {
     super.initState();
-    _initializeLocation();
+    _initializeLocation().then((_) {
+      _startForegroundLocationUpdates();
+      _startCompassUpdates();
+    });
     _isBackgroundServiceRunning = _locationService.isBackgroundServiceRunning;
     if (widget.selectedDate != null) {
       _loadSelectedDateLocations();
@@ -51,6 +62,56 @@ class _MapView extends State<MapView> {
         _isLoading = false;
       });
     }
+  }
+
+  void _startForegroundLocationUpdates() async {
+    try {
+      await LocationDataProvider.changeSettings(
+        accuracy: LocationAccuracy.high,
+        interval: 2000,
+        distanceFilter: 1.0,
+      );
+
+      _locationSubscription?.cancel();
+      _locationSubscription = LocationDataProvider.location.onLocationChanged.listen(
+        (LocationData data) {
+          final double? lat = data.latitude;
+          final double? lng = data.longitude;
+          if (lat == null || lng == null) return;
+          setState(() {
+            _currentLocation = LatLng(lat, lng);
+          });
+        },
+        onError: (error) {
+          print('前景位置情報ストリームのエラー: $error');
+        },
+      );
+    } catch (e) {
+      print('前景位置情報ストリームの開始に失敗: $e');
+    }
+  }
+
+  void _startCompassUpdates() {
+    _compassSubscription?.cancel();
+    _compassSubscription = FlutterCompass.events?.listen(
+      (CompassEvent event) {
+        final double? heading = event.heading;
+        if (heading == null) return;
+        setState(() {
+          _headingDegrees = heading;
+        });
+      },
+      onError: (error) {
+        print('コンパスストリームのエラー: $error');
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _locationSubscription?.cancel();
+    _compassSubscription?.cancel();
+    super.dispose();
   }
 
   /// 選択された日付の位置情報を読み込む
@@ -221,7 +282,31 @@ class _MapView extends State<MapView> {
                       ),
                   ],
                 ),
-              if (_currentLocation != null) const CurrentLocationLayer(),
+              if (_currentLocation != null)
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: _currentLocation!,
+                      width: 40.0,
+                      height: 40.0,
+                      child: Transform.rotate(
+                        angle: ((_headingDegrees ?? 0) * math.pi) / 180.0,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.navigation,
+                            color: Colors.blue,
+                            size: 28,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
             ],
           ),
           // 選択した日付の経路情報を表示
