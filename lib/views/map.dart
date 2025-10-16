@@ -26,6 +26,10 @@ class _MapView extends State<MapView> {
   final DatabaseHelper _databaseHelper = DatabaseHelper();
   bool _isLoading = true;
   final MapController _mapController = MapController();
+  StreamSubscription<MapEvent>? _mapEventSubscription;
+  bool _isMapReady = false;
+  LatLng? _pendingCenter;
+  double _pendingZoom = 15.0;
   bool _isBackgroundServiceRunning = false;
   List<LocationRecord> _selectedDateLocations = [];
   List<LatLng> _routePoints = [];
@@ -37,6 +41,17 @@ class _MapView extends State<MapView> {
     super.initState();
     _initializeLocation().then((_) {
       _startForegroundLocationUpdates();
+    });
+    _mapEventSubscription = _mapController.mapEventStream.listen((event) {
+      if (!_isMapReady) {
+        _isMapReady = true;
+        if (_pendingCenter != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _mapController.move(_pendingCenter!, _pendingZoom);
+            _pendingCenter = null;
+          });
+        }
+      }
     });
     _isBackgroundServiceRunning = _locationService.isBackgroundServiceRunning;
     if (widget.selectedDate != null) {
@@ -92,6 +107,7 @@ class _MapView extends State<MapView> {
   @override
   void dispose() {
     _locationSubscription?.cancel();
+    _mapEventSubscription?.cancel();
     super.dispose();
   }
 
@@ -132,11 +148,16 @@ class _MapView extends State<MapView> {
             .toList();
       });
       
-      // 位置情報がある場合は最初の地点に地図を移動
+      // 位置情報がある場合は最初の地点に地図を移動（MapController準備後）
       if (_routePoints.isNotEmpty) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _mapController.move(_routePoints.first, 15.0);
-        });
+        if (_isMapReady) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _mapController.move(_routePoints.first, 15.0);
+          });
+        } else {
+          _pendingCenter = _routePoints.first;
+          _pendingZoom = 15.0;
+        }
       }
       
       print('${widget.selectedDate!.toString().split(' ')[0]}の位置情報を${locations.length}件読み込みました');
@@ -170,7 +191,7 @@ class _MapView extends State<MapView> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.selectedDate != null 
-          ? '散歩マップ - ${widget.selectedDate!.year}/${widget.selectedDate!.month}/${widget.selectedDate!.day}'
+          ? '${widget.selectedDate!.year}/${widget.selectedDate!.month}/${widget.selectedDate!.day}'
           : '散歩マップ'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
@@ -362,10 +383,15 @@ class _MapView extends State<MapView> {
         onPressed: _currentLocation == null
             ? null
             : () {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _mapController.move(
-                      _currentLocation!, _mapController.camera.zoom);
-                });
+                final target = _currentLocation!;
+                if (_isMapReady) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _mapController.move(target, _mapController.camera.zoom);
+                  });
+                } else {
+                  _pendingCenter = target;
+                  _pendingZoom = _mapController.camera.zoom;
+                }
               },
         child: const Icon(Icons.my_location),
         tooltip: '現在地に移動',
