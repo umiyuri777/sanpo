@@ -36,19 +36,23 @@ class _CalendarView extends State<CalendarView>{
         lastDay: DateTime.utc(2030, 1, 1),
         focusedDay: DateTime.now(),
 
-        // // 日付が選択された時の処理
-        // selectedDayPredicate: (day) {
-        //   return isSameDay(_selectedDay, day);
-        // },
+        // 日付が選択された時の処理
+        selectedDayPredicate: (day) {
+          return isSameDay(_selectedDay, day);
+        },
 
         // 日付が選択された時の処理
         onDaySelected: (selectedDay, focusedDay) {
-          // setState(() {
-          //   _selectedDay = selectedDay;
-          // });
+          setState(() {
+            _selectedDay = selectedDay;
+          });
 
-          Navigator.push(context, MaterialPageRoute(builder: (context) => MapView()));
-
+          Navigator.push(
+            context, 
+            MaterialPageRoute(
+              builder: (context) => MapView(selectedDate: selectedDay)
+            )
+          );
         },
         availableCalendarFormats: const {
           CalendarFormat.month: 'Month',
