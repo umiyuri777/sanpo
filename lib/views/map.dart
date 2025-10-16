@@ -6,7 +6,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:sanpo/import.dart';
 import 'package:sanpo/database/database_helper.dart';
 import 'package:sanpo/models/location_record.dart';
-// removed unused flutter_map_location_marker import, using custom marker instead
+import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:location/location.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:sanpo/utils/location_data_provider.dart';
@@ -30,15 +30,13 @@ class _MapView extends State<MapView> {
   List<LocationRecord> _selectedDateLocations = [];
   List<LatLng> _routePoints = [];
   StreamSubscription<LocationData>? _locationSubscription;
-  StreamSubscription<CompassEvent>? _compassSubscription;
-  double? _headingDegrees;
+  // compass is not used when relying on CurrentLocationLayer's default icon
 
   @override
   void initState() {
     super.initState();
     _initializeLocation().then((_) {
       _startForegroundLocationUpdates();
-      _startCompassUpdates();
     });
     _isBackgroundServiceRunning = _locationService.isBackgroundServiceRunning;
     if (widget.selectedDate != null) {
@@ -91,26 +89,9 @@ class _MapView extends State<MapView> {
     }
   }
 
-  void _startCompassUpdates() {
-    _compassSubscription?.cancel();
-    _compassSubscription = FlutterCompass.events?.listen(
-      (CompassEvent event) {
-        final double? heading = event.heading;
-        if (heading == null) return;
-        setState(() {
-          _headingDegrees = heading;
-        });
-      },
-      onError: (error) {
-        print('コンパスストリームのエラー: $error');
-      },
-    );
-  }
-
   @override
   void dispose() {
     _locationSubscription?.cancel();
-    _compassSubscription?.cancel();
     super.dispose();
   }
 
@@ -283,29 +264,16 @@ class _MapView extends State<MapView> {
                   ],
                 ),
               if (_currentLocation != null)
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: _currentLocation!,
-                      width: 40.0,
-                      height: 40.0,
-                      child: Transform.rotate(
-                        angle: ((_headingDegrees ?? 0) * math.pi) / 180.0,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          alignment: Alignment.center,
-                          child: const Icon(
-                            Icons.navigation,
-                            color: Colors.blue,
-                            size: 28,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                CurrentLocationLayer(
+                  headingStream: FlutterCompass.events?.map((event) {
+                    final double? headingDeg = event.heading;
+                    final double? accuracyDeg = event.accuracy;
+                    if (headingDeg == null) return null;
+                    return LocationMarkerHeading(
+                      heading: headingDeg * (math.pi / 180.0),
+                      accuracy: (accuracyDeg ?? 45.0) * (math.pi / 180.0),
+                    );
+                  }),
                 ),
             ],
           ),
