@@ -69,7 +69,7 @@ class _MapView extends State<MapView> {
   /// 非同期で位置情報とデータベースを初期化する
   Future<void> _initializeAsync() async {
     // 位置情報の初期化とデータベース読み込みを並列で実行
-    final futures = <Future>[_initializeLocation()];
+    final futures = <Future<void>>[_initializeLocation()];
     
     if (widget.selectedDate != null) {
       futures.add(_loadSelectedDateLocations());
