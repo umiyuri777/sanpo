@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:math' as math;
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:sanpo/import.dart';
 import 'package:sanpo/database/database_helper.dart';
 import 'package:sanpo/models/location_record.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
+import 'package:location/location.dart';
+import 'package:flutter_compass/flutter_compass.dart';
+import 'package:sanpo/utils/location_data_provider.dart';
 
 class MapView extends StatefulWidget {
   final DateTime? selectedDate;
@@ -21,14 +26,33 @@ class _MapView extends State<MapView> {
   final DatabaseHelper _databaseHelper = DatabaseHelper();
   bool _isLoading = true;
   final MapController _mapController = MapController();
+  StreamSubscription<MapEvent>? _mapEventSubscription;
+  bool _isMapReady = false;
+  LatLng? _pendingCenter;
+  double _pendingZoom = 15.0;
   bool _isBackgroundServiceRunning = false;
   List<LocationRecord> _selectedDateLocations = [];
   List<LatLng> _routePoints = [];
+  StreamSubscription<LocationData>? _locationSubscription;
+  // compass is not used when relying on CurrentLocationLayer's default icon
 
   @override
   void initState() {
     super.initState();
-    _initializeLocation();
+    _initializeLocation().then((_) {
+      _startForegroundLocationUpdates();
+    });
+    _mapEventSubscription = _mapController.mapEventStream.listen((event) {
+      if (!_isMapReady) {
+        _isMapReady = true;
+        if (_pendingCenter != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _mapController.move(_pendingCenter!, _pendingZoom);
+            _pendingCenter = null;
+          });
+        }
+      }
+    });
     _isBackgroundServiceRunning = _locationService.isBackgroundServiceRunning;
     if (widget.selectedDate != null) {
       _loadSelectedDateLocations();
@@ -51,6 +75,40 @@ class _MapView extends State<MapView> {
         _isLoading = false;
       });
     }
+  }
+
+  void _startForegroundLocationUpdates() async {
+    try {
+      await LocationDataProvider.changeSettings(
+        accuracy: LocationAccuracy.high,
+        interval: 2000,
+        distanceFilter: 1.0,
+      );
+
+      _locationSubscription?.cancel();
+      _locationSubscription = LocationDataProvider.location.onLocationChanged.listen(
+        (LocationData data) {
+          final double? lat = data.latitude;
+          final double? lng = data.longitude;
+          if (lat == null || lng == null) return;
+          setState(() {
+            _currentLocation = LatLng(lat, lng);
+          });
+        },
+        onError: (error) {
+          print('前景位置情報ストリームのエラー: $error');
+        },
+      );
+    } catch (e) {
+      print('前景位置情報ストリームの開始に失敗: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _locationSubscription?.cancel();
+    _mapEventSubscription?.cancel();
+    super.dispose();
   }
 
   /// 選択された日付の位置情報を読み込む
@@ -90,11 +148,16 @@ class _MapView extends State<MapView> {
             .toList();
       });
       
-      // 位置情報がある場合は最初の地点に地図を移動
+      // 位置情報がある場合は最初の地点に地図を移動（MapController準備後）
       if (_routePoints.isNotEmpty) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _mapController.move(_routePoints.first, 15.0);
-        });
+        if (_isMapReady) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _mapController.move(_routePoints.first, 15.0);
+          });
+        } else {
+          _pendingCenter = _routePoints.first;
+          _pendingZoom = 15.0;
+        }
       }
       
       print('${widget.selectedDate!.toString().split(' ')[0]}の位置情報を${locations.length}件読み込みました');
@@ -128,7 +191,7 @@ class _MapView extends State<MapView> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.selectedDate != null 
-          ? '散歩マップ - ${widget.selectedDate!.year}/${widget.selectedDate!.month}/${widget.selectedDate!.day}'
+          ? '${widget.selectedDate!.year}/${widget.selectedDate!.month}/${widget.selectedDate!.day}'
           : '散歩マップ'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
@@ -221,7 +284,18 @@ class _MapView extends State<MapView> {
                       ),
                   ],
                 ),
-              if (_currentLocation != null) const CurrentLocationLayer(),
+              if (_currentLocation != null)
+                CurrentLocationLayer(
+                  headingStream: FlutterCompass.events?.map((event) {
+                    final double? headingDeg = event.heading;
+                    final double? accuracyDeg = event.accuracy;
+                    if (headingDeg == null) return null;
+                    return LocationMarkerHeading(
+                      heading: headingDeg * (math.pi / 180.0),
+                      accuracy: (accuracyDeg ?? 45.0) * (math.pi / 180.0),
+                    );
+                  }),
+                ),
             ],
           ),
           // 選択した日付の経路情報を表示
@@ -309,10 +383,15 @@ class _MapView extends State<MapView> {
         onPressed: _currentLocation == null
             ? null
             : () {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _mapController.move(
-                      _currentLocation!, _mapController.camera.zoom);
-                });
+                final target = _currentLocation!;
+                if (_isMapReady) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _mapController.move(target, _mapController.camera.zoom);
+                  });
+                } else {
+                  _pendingCenter = target;
+                  _pendingZoom = _mapController.camera.zoom;
+                }
               },
         child: const Icon(Icons.my_location),
         tooltip: '現在地に移動',
