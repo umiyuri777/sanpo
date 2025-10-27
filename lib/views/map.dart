@@ -44,11 +44,11 @@ class _MapView extends State<MapView> {
   }
 
   @override
-  void initState() {
+  Future<void> initState() async {
     super.initState();
     
-    // 非同期初期化を開始
-    _initializeAsync();
+    // 初期化を開始
+    await _initialize();
     
     // 地図を描画しイベントを監視する
     _mapEventSubscription = _mapController.mapEventStream.listen((event) {
@@ -70,15 +70,17 @@ class _MapView extends State<MapView> {
   }
 
   /// 非同期で位置情報とデータベースを初期化する
-  Future<void> _initializeAsync() async {
+  Future<void> _initialize() async {
     
     if (widget.selectedDate != null) {
       // 選択された日付がある場合（カレンダーから遷移）は位置情報の取得をスキップ
       await _loadSelectedDateLocations();
     } else {
-      // 通常のマップ表示の場合のみ位置情報更新を開始
-      await _initializeLocation();
-      await _startForegroundLocationUpdates();
+      // 通常のマップ表示の場合：位置情報の初期化と更新の開始を並列実行
+      await Future.wait([
+        _initializeLocation(),
+        _startForegroundLocationUpdates(),
+      ]);
     }
 
     _safeSetState(() {
