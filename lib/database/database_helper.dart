@@ -112,7 +112,7 @@ class DatabaseHelper {
         startDate.millisecondsSinceEpoch,
         endDate.millisecondsSinceEpoch,
       ],
-      orderBy: "timestamp ASC",
+      orderBy: 'timestamp ASC',
     );
 
     return maps.map((map) => LocationRecord.fromMap(map)).toList();
