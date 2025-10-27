@@ -348,78 +348,83 @@ class _MapView extends State<MapView> {
                 ),
               ),
             ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 50),
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _isBackgroundServiceRunning
-                      ? Colors.red
-                      : Colors.blue,
-                  foregroundColor: Colors.white,
-                  shape: const StadiumBorder(),
+          // カレンダーから遷移した場合は記録ボタンを非表示
+          if (widget.selectedDate == null)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 50),
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _isBackgroundServiceRunning
+                        ? Colors.red
+                        : Colors.blue,
+                    foregroundColor: Colors.white,
+                    shape: const StadiumBorder(),
+                  ),
+                  onPressed: () async {
+                    if (_isBackgroundServiceRunning) {
+                      final success =
+                          await _locationService.stopBackgroundLocationService();
+                      if (!mounted) return;
+                      if (success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('バックグラウンドサービスを停止しました')),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('バックグラウンドサービスの停止に失敗しました')),
+                        );
+                      }
+                    } else {
+                      final success =
+                          await _locationService.startBackgroundLocationService();
+                      if (!mounted) return;
+                      if (success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('バックグラウンドサービスを開始しました')),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('バックグラウンドサービスの開始に失敗しました')),
+                        );
+                      }
+                    }
+                    _safeSetState(() {
+                      _isBackgroundServiceRunning =
+                          _locationService.isBackgroundServiceRunning;
+                    });
+                  },
+                  child: _isBackgroundServiceRunning
+                      ? const Text('Stop')
+                      : const Text('Start'),
                 ),
-                onPressed: () async {
-                  if (_isBackgroundServiceRunning) {
-                    final success =
-                        await _locationService.stopBackgroundLocationService();
-                    if (!mounted) return;
-                    if (success) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('バックグラウンドサービスを停止しました')),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('バックグラウンドサービスの停止に失敗しました')),
-                      );
-                    }
-                  } else {
-                    final success =
-                        await _locationService.startBackgroundLocationService();
-                    if (!mounted) return;
-                    if (success) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('バックグラウンドサービスを開始しました')),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('バックグラウンドサービスの開始に失敗しました')),
-                      );
-                    }
-                  }
-                  _safeSetState(() {
-                    _isBackgroundServiceRunning =
-                        _locationService.isBackgroundServiceRunning;
-                  });
-                },
-                child: _isBackgroundServiceRunning
-                    ? const Text('Stop')
-                    : const Text('Start'),
               ),
             ),
-          ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _currentLocation == null
-            ? null
-            : () {
-                final target = _currentLocation!;
-                if (_isMapReady) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) {
-                      _mapController.move(target, _mapController.camera.zoom);
-                    }
-                  });
-                } else {
-                  _pendingCenter = target;
-                  _pendingZoom = _mapController.camera.zoom;
-                }
-              },
-        child: const Icon(Icons.my_location),
-        tooltip: '現在地に移動',
-      ),
+      // カレンダーから遷移した場合は現在地ボタンを非表示
+      floatingActionButton: widget.selectedDate == null
+          ? FloatingActionButton(
+              onPressed: _currentLocation == null
+                  ? null
+                  : () {
+                      final target = _currentLocation!;
+                      if (_isMapReady) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) {
+                            _mapController.move(target, _mapController.camera.zoom);
+                          }
+                        });
+                      } else {
+                        _pendingCenter = target;
+                        _pendingZoom = _mapController.camera.zoom;
+                      }
+                    },
+              child: const Icon(Icons.my_location),
+              tooltip: '現在地に移動',
+            )
+          : null,
     );
   }
 }
