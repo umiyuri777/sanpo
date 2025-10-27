@@ -35,6 +35,14 @@ class _MapView extends State<MapView> {
   StreamSubscription<LocationData>? _locationSubscription;
   // compass is not used when relying on CurrentLocationLayer's default icon
 
+  /// 安全にsetStateを実行するヘルパーメソッド
+  /// ウィジェットがdisposeされている場合は何もしない
+  void _safeSetState(VoidCallback fn) {
+    if (mounted) {
+      setState(fn);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -46,8 +54,10 @@ class _MapView extends State<MapView> {
         _isMapReady = true;
         if (_pendingCenter != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            _mapController.move(_pendingCenter!, _pendingZoom);
-            _pendingCenter = null;
+            if (mounted) {
+              _mapController.move(_pendingCenter!, _pendingZoom);
+              _pendingCenter = null;
+            }
           });
         }
       }
@@ -63,14 +73,14 @@ class _MapView extends State<MapView> {
       final locationData = await _locationService.initializeAndGetLocation(
         delayAfterPermission: 1000,
       );
-      setState(() {
+      _safeSetState(() {
         _currentLocation =
             LatLng(locationData.latitude ?? 0.0, locationData.longitude ?? 0.0);
       });
     } catch (e) {
       print('位置情報の初期化でエラーが発生しました: $e');
     } finally {
-      setState(() {
+      _safeSetState(() {
         _isLoading = false;
       });
     }
@@ -90,7 +100,7 @@ class _MapView extends State<MapView> {
           final double? lat = data.latitude;
           final double? lng = data.longitude;
           if (lat == null || lng == null) return;
-          setState(() {
+          _safeSetState(() {
             _currentLocation = LatLng(lat, lng);
           });
         },
@@ -140,7 +150,7 @@ class _MapView extends State<MapView> {
       // 時系列順にソート（古い順）
       locations.sort((a, b) => a.timestamp.compareTo(b.timestamp));
       
-      setState(() {
+      _safeSetState(() {
         _selectedDateLocations = locations;
         _routePoints = locations
             .map((record) => LatLng(record.latitude, record.longitude))
@@ -151,7 +161,9 @@ class _MapView extends State<MapView> {
       if (_routePoints.isNotEmpty) {
         if (_isMapReady) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            _mapController.move(_routePoints.first, 15.0);
+            if (mounted) {
+              _mapController.move(_routePoints.first, 15.0);
+            }
           });
         } else {
           _pendingCenter = _routePoints.first;
@@ -343,6 +355,7 @@ class _MapView extends State<MapView> {
                   if (_isBackgroundServiceRunning) {
                     final success =
                         await _locationService.stopBackgroundLocationService();
+                    if (!mounted) return;
                     if (success) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('バックグラウンドサービスを停止しました')),
@@ -355,6 +368,7 @@ class _MapView extends State<MapView> {
                   } else {
                     final success =
                         await _locationService.startBackgroundLocationService();
+                    if (!mounted) return;
                     if (success) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('バックグラウンドサービスを開始しました')),
@@ -365,7 +379,7 @@ class _MapView extends State<MapView> {
                       );
                     }
                   }
-                  setState(() {
+                  _safeSetState(() {
                     _isBackgroundServiceRunning =
                         _locationService.isBackgroundServiceRunning;
                   });
@@ -385,7 +399,9 @@ class _MapView extends State<MapView> {
                 final target = _currentLocation!;
                 if (_isMapReady) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
-                    _mapController.move(target, _mapController.camera.zoom);
+                    if (mounted) {
+                      _mapController.move(target, _mapController.camera.zoom);
+                    }
                   });
                 } else {
                   _pendingCenter = target;
