@@ -28,13 +28,14 @@ class MainNavigationScreen extends StatefulWidget {
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  static const _screens = [
-    CalendarView(),
-    MapView(),
-    DebugLocationsView(),
-  ];
-
   int _selectedIndex = 0;
+
+
+  final List<Widget> _screens = [
+    const CalendarView(),
+    const MapView(),
+    const DebugLocationsView(),
+  ];
 
   void _onItemTapped(int index) {
     setState(() {
@@ -45,7 +46,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: _screens[_selectedIndex],
+        body: IndexedStack(
+          index: _selectedIndex,
+          children: _screens,
+        ),
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: _onItemTapped,
