@@ -15,19 +15,19 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const MyStatefulWidget(),
+      home: const MainNavigationScreen(),
     );
   }
 }
 
-class MyStatefulWidget extends StatefulWidget {
-  const MyStatefulWidget({super.key});
+class MainNavigationScreen extends StatefulWidget {
+  const MainNavigationScreen({super.key});
 
   @override
-  State<MyStatefulWidget> createState() => _MyStatefulWidgetState();
+  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
 }
 
-class _MyStatefulWidgetState extends State<MyStatefulWidget> {
+class _MainNavigationScreenState extends State<MainNavigationScreen> {
   static const _screens = [
     CalendarView(),
     MapView(),
