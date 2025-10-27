@@ -227,19 +227,6 @@ class _MapView extends State<MapView> {
           ? '${widget.selectedDate!.year}/${widget.selectedDate!.month}/${widget.selectedDate!.day}'
           : '散歩マップ'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.bug_report),
-            tooltip: 'デバッグ情報',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const DebugLocationsView()),
-              );
-            },
-          ),
-        ],
       ),
       body: Stack(
         children: [
