@@ -21,7 +21,8 @@ class DatabaseHelper {
 
   /// データベースを初期化
   Future<Database> _initDatabase() async {
-    final Directory documentsDirectory = await getApplicationDocumentsDirectory();
+    final Directory documentsDirectory =
+        await getApplicationDocumentsDirectory();
     final String path = join(documentsDirectory.path, 'sanpo_locations.db');
 
     return await openDatabase(
@@ -49,8 +50,10 @@ class DatabaseHelper {
     ''');
 
     // インデックスを作成（検索性能向上のため）
-    await db.execute('CREATE INDEX idx_timestamp ON location_records(timestamp)');
-    await db.execute('CREATE INDEX idx_background ON location_records(isBackground)');
+    await db
+        .execute('CREATE INDEX idx_timestamp ON location_records(timestamp)');
+    await db.execute(
+        'CREATE INDEX idx_background ON location_records(isBackground)');
   }
 
   /// 位置情報を保存
@@ -70,11 +73,11 @@ class DatabaseHelper {
   Future<void> insertLocationRecords(List<LocationRecord> records) async {
     final db = await database;
     final batch = db.batch();
-    
+
     for (final record in records) {
       batch.insert('location_records', record.toMap());
     }
-    
+
     try {
       await batch.commit();
       print('${records.length}件の位置情報を一括保存しました');
@@ -96,6 +99,7 @@ class DatabaseHelper {
   }
 
   /// 指定期間の位置情報を取得
+  /// 時系列順（昇順：古い順）で取得
   Future<List<LocationRecord>> getLocationRecordsByDateRange(
     DateTime startDate,
     DateTime endDate,
@@ -108,7 +112,7 @@ class DatabaseHelper {
         startDate.millisecondsSinceEpoch,
         endDate.millisecondsSinceEpoch,
       ],
-      orderBy: 'timestamp DESC',
+      orderBy: "timestamp ASC",
     );
 
     return maps.map((map) => LocationRecord.fromMap(map)).toList();
@@ -190,8 +194,7 @@ class DatabaseHelper {
   Future<int> getLocationRecordCount() async {
     final db = await database;
     final count = Sqflite.firstIntValue(
-      await db.rawQuery('SELECT COUNT(*) FROM location_records')
-    );
+        await db.rawQuery('SELECT COUNT(*) FROM location_records'));
     return count ?? 0;
   }
-} 
+}

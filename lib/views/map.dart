@@ -46,9 +46,10 @@ class _MapView extends State<MapView> {
   @override
   void initState() {
     super.initState();
-    _initializeLocation().then((_) {
-      _startForegroundLocationUpdates();
-    });
+    
+    // 非同期初期化を開始
+    _initializeAsync();
+    
     _mapEventSubscription = _mapController.mapEventStream.listen((event) {
       if (!_isMapReady) {
         _isMapReady = true;
@@ -63,12 +64,35 @@ class _MapView extends State<MapView> {
       }
     });
     _isBackgroundServiceRunning = _locationService.isBackgroundServiceRunning;
+  }
+
+  /// 非同期で位置情報とデータベースを初期化する
+  Future<void> _initializeAsync() async {
+    // 位置情報の初期化とデータベース読み込みを並列で実行
+    final futures = <Future>[_initializeLocation()];
+    
     if (widget.selectedDate != null) {
-      _loadSelectedDateLocations();
+      futures.add(_loadSelectedDateLocations());
+    }
+    
+    // 並列で実行（両方が完了するまで待つ）
+    await Future.wait(futures);
+    
+    // 通常のマップ表示の場合のみ位置情報更新を開始
+    if (widget.selectedDate == null) {
+      _startForegroundLocationUpdates();
     }
   }
 
   Future<void> _initializeLocation() async {
+    // 選択された日付がある場合（カレンダーから遷移）は位置情報の取得をスキップ
+    if (widget.selectedDate != null) {
+      _safeSetState(() {
+        _isLoading = false;
+      });
+      return;
+    }
+    
     try {
       final locationData = await _locationService.initializeAndGetLocation(
         delayAfterPermission: 1000,
@@ -142,13 +166,11 @@ class _MapView extends State<MapView> {
         59,
       );
       
+      // 時系列順（昇順：古い順）で取得
       final locations = await _databaseHelper.getLocationRecordsByDateRange(
         startOfDay,
         endOfDay,
       );
-      
-      // 時系列順にソート（古い順）
-      locations.sort((a, b) => a.timestamp.compareTo(b.timestamp));
       
       _safeSetState(() {
         _selectedDateLocations = locations;
