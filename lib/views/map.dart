@@ -50,6 +50,7 @@ class _MapView extends State<MapView> {
     // 非同期初期化を開始
     _initializeAsync();
     
+    // 地図を描画しイベントを監視する
     _mapEventSubscription = _mapController.mapEventStream.listen((event) {
       if (!_isMapReady) {
         _isMapReady = true;
@@ -63,36 +64,30 @@ class _MapView extends State<MapView> {
         }
       }
     });
+
+    // バックグラウンドサービスの実行状態を取得
     _isBackgroundServiceRunning = _locationService.isBackgroundServiceRunning;
   }
 
   /// 非同期で位置情報とデータベースを初期化する
   Future<void> _initializeAsync() async {
-    // 位置情報の初期化とデータベース読み込みを並列で実行
-    final futures = <Future<void>>[_initializeLocation()];
     
     if (widget.selectedDate != null) {
-      futures.add(_loadSelectedDateLocations());
+      // 選択された日付がある場合（カレンダーから遷移）は位置情報の取得をスキップ
+      await _loadSelectedDateLocations();
+    } else {
+      // 通常のマップ表示の場合のみ位置情報更新を開始
+      await _initializeLocation();
+      await _startForegroundLocationUpdates();
     }
-    
-    // 並列で実行（両方が完了するまで待つ）
-    await Future.wait(futures);
-    
-    // 通常のマップ表示の場合のみ位置情報更新を開始
-    if (widget.selectedDate == null) {
-      _startForegroundLocationUpdates();
-    }
+
+    _safeSetState(() {
+      _isLoading = false;
+    });
   }
 
-  Future<void> _initializeLocation() async {
-    // 選択された日付がある場合（カレンダーから遷移）は位置情報の取得をスキップ
-    if (widget.selectedDate != null) {
-      _safeSetState(() {
-        _isLoading = false;
-      });
-      return;
-    }
-    
+  /// 位置情報の初期化
+  Future<void> _initializeLocation() async {    
     try {
       final locationData = await _locationService.initializeAndGetLocation(
         delayAfterPermission: 1000,
@@ -103,14 +98,11 @@ class _MapView extends State<MapView> {
       });
     } catch (e) {
       print('位置情報の初期化でエラーが発生しました: $e');
-    } finally {
-      _safeSetState(() {
-        _isLoading = false;
-      });
     }
   }
 
-  void _startForegroundLocationUpdates() async {
+  /// 位置情報ストリームの開始
+  Future<void> _startForegroundLocationUpdates() async {
     try {
       await LocationDataProvider.changeSettings(
         accuracy: LocationAccuracy.high,
@@ -146,7 +138,6 @@ class _MapView extends State<MapView> {
 
   /// 選択された日付の位置情報を読み込む
   Future<void> _loadSelectedDateLocations() async {
-    if (widget.selectedDate == null) return;
     
     try {
       // 選択された日の開始時刻（00:00:00）
