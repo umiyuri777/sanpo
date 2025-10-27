@@ -9,7 +9,6 @@ import 'package:sanpo/models/location_record.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:location/location.dart';
 import 'package:flutter_compass/flutter_compass.dart';
-import 'package:sanpo/utils/location_data_provider.dart';
 
 class MapView extends StatefulWidget {
   final DateTime? selectedDate;
