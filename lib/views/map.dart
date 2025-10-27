@@ -44,11 +44,12 @@ class _MapView extends State<MapView> {
   }
 
   @override
-  void initState() {
+  void initState()  {
     super.initState();
-    _initializeLocation().then((_) {
-      _startForegroundLocationUpdates();
-    });
+    // 初期化を開始
+    _initialize();
+    
+    // 地図を描画しイベントを監視する
     _mapEventSubscription = _mapController.mapEventStream.listen((event) {
       if (!_isMapReady) {
         _isMapReady = true;
@@ -62,13 +63,30 @@ class _MapView extends State<MapView> {
         }
       }
     });
+
+    // バックグラウンドサービスの実行状態を取得
     _isBackgroundServiceRunning = _locationService.isBackgroundServiceRunning;
-    if (widget.selectedDate != null) {
-      _loadSelectedDateLocations();
-    }
   }
 
-  Future<void> _initializeLocation() async {
+  /// 非同期で位置情報とデータベースを初期化する
+  Future<void> _initialize() async {
+    
+    if (widget.selectedDate != null) {
+      // 選択された日付がある場合（カレンダーから遷移）は位置情報の取得をスキップ
+      await _loadSelectedDateLocations();
+    } else {
+      // 通常のマップ表示の場合：位置情報の初期化と更新の開始を並列実行
+      await _initializeLocation();
+      await _startForegroundLocationUpdates();
+    }
+
+    _safeSetState(() {
+      _isLoading = false;
+    });
+  }
+
+  /// 位置情報の初期化
+  Future<void> _initializeLocation() async {    
     try {
       final locationData = await _locationService.initializeAndGetLocation(
         delayAfterPermission: 1000,
@@ -79,14 +97,11 @@ class _MapView extends State<MapView> {
       });
     } catch (e) {
       print('位置情報の初期化でエラーが発生しました: $e');
-    } finally {
-      _safeSetState(() {
-        _isLoading = false;
-      });
     }
   }
 
-  void _startForegroundLocationUpdates() async {
+  /// 位置情報ストリームの開始
+  Future<void> _startForegroundLocationUpdates() async {
     try {
       await LocationDataProvider.changeSettings(
         accuracy: LocationAccuracy.high,
@@ -122,7 +137,6 @@ class _MapView extends State<MapView> {
 
   /// 選択された日付の位置情報を読み込む
   Future<void> _loadSelectedDateLocations() async {
-    if (widget.selectedDate == null) return;
     
     try {
       // 選択された日の開始時刻（00:00:00）
@@ -142,13 +156,11 @@ class _MapView extends State<MapView> {
         59,
       );
       
+      // 時系列順（昇順：古い順）で取得
       final locations = await _databaseHelper.getLocationRecordsByDateRange(
         startOfDay,
         endOfDay,
       );
-      
-      // 時系列順にソート（古い順）
-      locations.sort((a, b) => a.timestamp.compareTo(b.timestamp));
       
       _safeSetState(() {
         _selectedDateLocations = locations;
@@ -205,19 +217,6 @@ class _MapView extends State<MapView> {
           ? '${widget.selectedDate!.year}/${widget.selectedDate!.month}/${widget.selectedDate!.day}'
           : '散歩マップ'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.bug_report),
-            tooltip: 'デバッグ情報',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const DebugLocationsView()),
-              );
-            },
-          ),
-        ],
       ),
       body: Stack(
         children: [
@@ -339,78 +338,83 @@ class _MapView extends State<MapView> {
                 ),
               ),
             ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 50),
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _isBackgroundServiceRunning
-                      ? Colors.red
-                      : Colors.blue,
-                  foregroundColor: Colors.white,
-                  shape: const StadiumBorder(),
+          // カレンダーから遷移した場合は記録ボタンを非表示
+          if (widget.selectedDate == null)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 50),
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _isBackgroundServiceRunning
+                        ? Colors.red
+                        : Colors.blue,
+                    foregroundColor: Colors.white,
+                    shape: const StadiumBorder(),
+                  ),
+                  onPressed: () async {
+                    if (_isBackgroundServiceRunning) {
+                      final success =
+                          await _locationService.stopBackgroundLocationService();
+                      if (!mounted) return;
+                      if (success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('バックグラウンドサービスを停止しました')),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('バックグラウンドサービスの停止に失敗しました')),
+                        );
+                      }
+                    } else {
+                      final success =
+                          await _locationService.startBackgroundLocationService();
+                      if (!mounted) return;
+                      if (success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('バックグラウンドサービスを開始しました')),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('バックグラウンドサービスの開始に失敗しました')),
+                        );
+                      }
+                    }
+                    _safeSetState(() {
+                      _isBackgroundServiceRunning =
+                          _locationService.isBackgroundServiceRunning;
+                    });
+                  },
+                  child: _isBackgroundServiceRunning
+                      ? const Text('Stop')
+                      : const Text('Start'),
                 ),
-                onPressed: () async {
-                  if (_isBackgroundServiceRunning) {
-                    final success =
-                        await _locationService.stopBackgroundLocationService();
-                    if (!mounted) return;
-                    if (success) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('バックグラウンドサービスを停止しました')),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('バックグラウンドサービスの停止に失敗しました')),
-                      );
-                    }
-                  } else {
-                    final success =
-                        await _locationService.startBackgroundLocationService();
-                    if (!mounted) return;
-                    if (success) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('バックグラウンドサービスを開始しました')),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('バックグラウンドサービスの開始に失敗しました')),
-                      );
-                    }
-                  }
-                  _safeSetState(() {
-                    _isBackgroundServiceRunning =
-                        _locationService.isBackgroundServiceRunning;
-                  });
-                },
-                child: _isBackgroundServiceRunning
-                    ? const Text('Stop')
-                    : const Text('Start'),
               ),
             ),
-          ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _currentLocation == null
-            ? null
-            : () {
-                final target = _currentLocation!;
-                if (_isMapReady) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) {
-                      _mapController.move(target, _mapController.camera.zoom);
-                    }
-                  });
-                } else {
-                  _pendingCenter = target;
-                  _pendingZoom = _mapController.camera.zoom;
-                }
-              },
-        child: const Icon(Icons.my_location),
-        tooltip: '現在地に移動',
-      ),
+      // カレンダーから遷移した場合は現在地ボタンを非表示
+      floatingActionButton: widget.selectedDate == null
+          ? FloatingActionButton(
+              onPressed: _currentLocation == null
+                  ? null
+                  : () {
+                      final target = _currentLocation!;
+                      if (_isMapReady) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) {
+                            _mapController.move(target, _mapController.camera.zoom);
+                          }
+                        });
+                      } else {
+                        _pendingCenter = target;
+                        _pendingZoom = _mapController.camera.zoom;
+                      }
+                    },
+              child: const Icon(Icons.my_location),
+              tooltip: '現在地に移動',
+            )
+          : null,
     );
   }
 }
