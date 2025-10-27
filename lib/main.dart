@@ -10,17 +10,56 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const String title = 'Flutter location Demo';
-
     return MaterialApp(
-      title: title,
+      title: 'Flutter Demo',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
+        primarySwatch: Colors.blue,
       ),
-      // home: const HomeView(title: title),
-      // home: const MapView(),
-      home: const CalendarView(),
+      home: const MainNavigationScreen(),
     );
+  }
+}
+
+class MainNavigationScreen extends StatefulWidget {
+  const MainNavigationScreen({super.key});
+
+  @override
+  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
+}
+
+class _MainNavigationScreenState extends State<MainNavigationScreen> {
+  int _selectedIndex = 0;
+
+
+  final List<Widget> _screens = [
+    const CalendarView(),
+    const MapView(),
+    const DebugLocationsView(),
+  ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+        body: IndexedStack(
+          index: _selectedIndex,
+          children: _screens,
+        ),
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: _selectedIndex,
+          onTap: _onItemTapped,
+          items: const <BottomNavigationBarItem>[
+            BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'カレンダー'),
+            BottomNavigationBarItem(icon: Icon(Icons.map), label: 'マップ'),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.bug_report), label: 'デバッグ'),
+          ],
+          type: BottomNavigationBarType.fixed,
+        ));
   }
 }
