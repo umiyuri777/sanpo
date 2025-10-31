@@ -45,6 +45,7 @@ class _DebugLocationsViewState extends State<DebugLocationsView> {
       setState(() {
         _isLoading = false;
       });
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('データの読み込みでエラー: $e')),
       );
@@ -74,11 +75,13 @@ class _DebugLocationsViewState extends State<DebugLocationsView> {
     if (confirmed == true) {
       try {
         await _databaseHelper.deleteAllLocationRecords();
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('全てのデータを削除しました')),
         );
         _loadLocationRecords();
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('削除でエラー: $e')),
         );
@@ -90,11 +93,13 @@ class _DebugLocationsViewState extends State<DebugLocationsView> {
   Future<void> _deleteRecord(LocationRecord record) async {
     try {
       await _databaseHelper.deleteLocationRecord(record.id!);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('データを削除しました')),
       );
       _loadLocationRecords();
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('削除でエラー: $e')),
       );

@@ -9,6 +9,13 @@ import 'package:sanpo/models/location_record.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:location/location.dart';
 import 'package:flutter_compass/flutter_compass.dart';
+import 'dart:ui' as ui;
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
+import 'package:flutter_map_marker_popup/flutter_map_marker_popup.dart';
+import 'package:sanpo/models/photo_record.dart';
 
 class MapView extends StatefulWidget {
   final DateTime? selectedDate;
@@ -30,6 +37,11 @@ class _MapView extends State<MapView> {
   List<LatLng> _routePoints = [];
   StreamSubscription<LocationData>? _locationSubscription;
   // compass is not used when relying on CurrentLocationLayer's default icon
+
+  // 写真関連
+  final PopupController _popupController = PopupController();
+  final Map<int, PhotoRecord> _photoById = {};
+  List<PhotoRecord> _photoRecords = [];
 
   /// 安全にsetStateを実行するヘルパーメソッド
   /// ウィジェットがdisposeされている場合は何もしない
@@ -64,6 +76,9 @@ class _MapView extends State<MapView> {
       await _startForegroundLocationUpdates();
     }
 
+    // 写真レコードを読み込み
+    await _loadPhotoRecordsForCurrentView();
+
     _safeSetState(() {
       _isLoading = false;
     });
@@ -80,7 +95,7 @@ class _MapView extends State<MapView> {
             LatLng(locationData.latitude ?? 0.0, locationData.longitude ?? 0.0);
       });
     } catch (e) {
-      print('位置情報の初期化でエラーが発生しました: $e');
+      debugPrint('位置情報の初期化でエラーが発生しました: $e');
     }
   }
 
@@ -104,11 +119,11 @@ class _MapView extends State<MapView> {
           });
         },
         onError: (error) {
-          print('前景位置情報ストリームのエラー: $error');
+          debugPrint('前景位置情報ストリームのエラー: $error');
         },
       );
     } catch (e) {
-      print('前景位置情報ストリームの開始に失敗: $e');
+      debugPrint('前景位置情報ストリームの開始に失敗: $e');
     }
   }
 
@@ -153,11 +168,165 @@ class _MapView extends State<MapView> {
       });
       // マップの初期表示は initialCenter に委ねる
       
-      print('${widget.selectedDate!.toString().split(' ')[0]}の位置情報を${locations.length}件読み込みました');
+      debugPrint('${widget.selectedDate!.toString().split(' ')[0]}の位置情報を${locations.length}件読み込みました');
       
     } catch (e) {
-      print('選択された日付の位置情報の読み込みでエラーが発生しました: $e');
+      debugPrint('選択された日付の位置情報の読み込みでエラーが発生しました: $e');
     }
+  }
+
+  /// 表示対象日の写真レコードを読み込む
+  Future<void> _loadPhotoRecordsForCurrentView() async {
+    try {
+      final DateTime base = widget.selectedDate ?? DateTime.now();
+      final DateTime start = DateTime(base.year, base.month, base.day);
+      final DateTime end =
+          DateTime(base.year, base.month, base.day, 23, 59, 59);
+      final photos = await _databaseHelper.getPhotoRecordsByDateRange(start, end);
+      _safeSetState(() {
+        _photoRecords = photos;
+        _photoById
+          ..clear()
+          ..addEntries(photos.where((e) => e.id != null).map((e) => MapEntry(e.id!, e)));
+      });
+    } catch (e) {
+      debugPrint('写真の読み込みでエラーが発生しました: $e');
+    }
+  }
+
+  /// ルート（_routePoints）の近くで長押しされたかどうか判定（しきい値: メートル）
+  bool _isNearRoute(LatLng pressed, {double thresholdMeters = 50}) {
+    if (_routePoints.isEmpty) return false;
+    const distance = Distance();
+    double minDist = double.infinity;
+    for (final p in _routePoints) {
+      final d = distance(pressed, p);
+      if (d < minDist) minDist = d;
+      if (minDist <= thresholdMeters) return true;
+    }
+    return minDist <= thresholdMeters;
+  }
+
+  /// マップ長押しで写真を追加
+  Future<void> _onMapLongPress(LatLng latLng) async {
+    if (_routePoints.isEmpty || !_isNearRoute(latLng)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('線の近くを長押しすると写真を追加できます')),
+      );
+      return;
+    }
+
+    final ImageSource? source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_camera),
+                title: const Text('カメラで撮影'),
+                onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('ライブラリから選択'),
+                onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (source == null) return;
+
+    final picker = ImagePicker();
+    final XFile? picked = await picker.pickImage(
+      source: source,
+      imageQuality: 85,
+      maxWidth: 2048,
+      maxHeight: 2048,
+    );
+    if (picked == null) return;
+
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final fileName =
+          'sanpo_photo_${DateTime.now().millisecondsSinceEpoch}${p.extension(picked.path).isEmpty ? '.jpg' : p.extension(picked.path)}';
+      final savePath = p.join(dir.path, fileName);
+      await File(picked.path).copy(savePath);
+
+      final record = PhotoRecord(
+        latitude: latLng.latitude,
+        longitude: latLng.longitude,
+        timestamp: DateTime.now(),
+        imagePath: savePath,
+      );
+      final id = await _databaseHelper.insertPhotoRecord(record);
+      final saved = record.copyWith(id: id);
+      _safeSetState(() {
+        _photoRecords.add(saved);
+        if (saved.id != null) {
+          _photoById[saved.id!] = saved;
+        }
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('写真を保存しました')),
+      );
+    } catch (e) {
+      debugPrint('写真の保存に失敗: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('写真の保存に失敗しました')),
+      );
+    }
+  }
+
+  /// 画像をフルスクリーンで表示（縦横どちらも対応、ピンチズーム可）
+  void _openPhotoViewer(PhotoRecord record) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (ctx) {
+        return GestureDetector(
+          onTap: () => Navigator.of(ctx).pop(),
+          child: Container(
+            color: Colors.black,
+            alignment: Alignment.center,
+            child: InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Image.file(
+                File(record.imagePath),
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  List<Marker> _buildPhotoMarkers() {
+    return _photoRecords
+        .where((e) => e.id != null)
+        .map((e) => Marker(
+              key: ValueKey<int>(e.id!),
+              point: LatLng(e.latitude, e.longitude),
+              width: 16,
+              height: 16,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.orangeAccent,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+              ),
+            ))
+        .toList();
   }
 
   @override
@@ -208,6 +377,7 @@ class _MapView extends State<MapView> {
                 pinchZoomWinGestures:
                     MultiFingerGesture.pinchZoom, // ピンチズームのみに設定
               ),
+              onLongPress: (tapPos, latLng) => _onMapLongPress(latLng),
             ),
             children: [
               TileLayer(
@@ -280,6 +450,62 @@ class _MapView extends State<MapView> {
                     );
                   }),
                 ),
+              // 写真マーカー + ポップアップ
+              if (_photoRecords.isNotEmpty)
+                PopupMarkerLayer(
+                  options: PopupMarkerLayerOptions(
+                    popupController: _popupController,
+                    markers: _buildPhotoMarkers(),
+                    popupDisplayOptions: PopupDisplayOptions(
+                      builder: (ctx, marker) {
+                        final key = marker.key;
+                        int? id;
+                        if (key is ValueKey<int>) id = key.value;
+                        final rec = id != null ? _photoById[id] : null;
+                        if (rec == null) {
+                          return const SizedBox.shrink();
+                        }
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Colors.black26,
+                                    blurRadius: 8,
+                                  )
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: GestureDetector(
+                                  onTap: () => _openPhotoViewer(rec),
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 260,
+                                      maxHeight: 260,
+                                    ),
+                                    child: Image.file(
+                                      File(rec.imagePath),
+                                      fit: BoxFit.contain, // 元画像の縦横比を保持
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            CustomPaint(
+                              size: const Size(20, 10),
+                              painter: _TrianglePainter(color: Colors.white),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ),
             ],
           ),
           // 選択した日付の経路情報を表示
@@ -330,7 +556,7 @@ class _MapView extends State<MapView> {
                     if (_isBackgroundServiceRunning) {
                       final success =
                           await _locationService.stopBackgroundLocationService();
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       if (success) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('バックグラウンドサービスを停止しました')),
@@ -343,7 +569,7 @@ class _MapView extends State<MapView> {
                     } else {
                       final success =
                           await _locationService.startBackgroundLocationService();
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       if (success) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('バックグラウンドサービスを開始しました')),
@@ -386,4 +612,24 @@ class _MapView extends State<MapView> {
           : null,
     );
   }
+}
+
+/// ポップアップ下の三角形（吹き出しのしっぽ）
+class _TrianglePainter extends CustomPainter {
+  final Color color;
+  _TrianglePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    final ui.Path path = ui.Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width / 2, size.height)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

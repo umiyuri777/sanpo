@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:location/location.dart';
+import 'package:flutter/material.dart';
 
 /// 位置情報権限管理クラス（locationプラグイン用）
 class LocationPermissionManager {
@@ -13,7 +14,7 @@ class LocationPermissionManager {
       if (!serviceEnabled) {
         serviceEnabled = await _location.requestService();
         if (!serviceEnabled) {
-          print('位置情報サービスが無効です');
+          debugPrint('位置情報サービスが無効です');
           return false;
         }
       }
@@ -23,15 +24,15 @@ class LocationPermissionManager {
       if (permissionGranted == PermissionStatus.denied) {
         permissionGranted = await _location.requestPermission();
         if (permissionGranted != PermissionStatus.granted) {
-          print('位置情報の権限が拒否されました');
+          debugPrint('位置情報の権限が拒否されました');
           return false;
         }
       }
 
-      print('位置情報の権限が許可されました');
+      debugPrint('位置情報の権限が許可されました');
       return true;
     } catch (e) {
-      print('位置情報権限要求エラー: $e');
+      debugPrint('位置情報権限要求エラー: $e');
       return false;
     }
   }
@@ -49,10 +50,10 @@ class LocationPermissionManager {
       // locationプラグインではenableBackgroundModeで処理される
       await _location.enableBackgroundMode(enable: true);
       
-      print('バックグラウンド位置情報の設定が完了しました');
+      debugPrint('バックグラウンド位置情報の設定が完了しました');
       return true;
     } catch (e) {
-      print('バックグラウンド位置情報権限要求エラー: $e');
+      debugPrint('バックグラウンド位置情報権限要求エラー: $e');
       return false;
     }
   }
@@ -62,8 +63,10 @@ class LocationPermissionManager {
     try {
       return await _location.serviceEnabled();
     } catch (e) {
-      print('位置情報サービス状態確認エラー: $e');
+      debugPrint('位置情報サービス状態確認エラー: $e');
       return false;
     }
   }
-} 
+}
+
+

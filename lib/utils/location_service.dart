@@ -2,7 +2,7 @@ import 'package:location/location.dart';
 import 'package:sanpo/import.dart';
 import 'package:sanpo/database/database_helper.dart';
 import 'package:sanpo/models/location_record.dart';
-
+import 'package:flutter/material.dart';
 
 /// 位置情報サービスのシングルトンクラス
 class LocationService {
@@ -33,14 +33,14 @@ class LocationService {
       final hasPermission = await LocationPermissionManager.requestBackgroundLocationPermission();
       
       if (hasPermission) {
-        print('バックグラウンド位置情報の権限が許可されました');
+        debugPrint('バックグラウンド位置情報の権限が許可されました');
         return true;
       } else {
-        print('バックグラウンド位置情報の権限が拒否されました');
+        debugPrint('バックグラウンド位置情報の権限が拒否されました');
         return false;
       }
     } catch (e) {
-      print('バックグラウンド位置情報の権限要求でエラー: $e');
+      debugPrint('バックグラウンド位置情報の権限要求でエラー: $e');
       return false;
     }
   }
@@ -72,7 +72,7 @@ class LocationService {
       
       return locationData;
     } catch (error) {
-      print('位置情報の取得・保存でエラーが発生しました: $error');
+      debugPrint('位置情報の取得・保存でエラーが発生しました: $error');
       rethrow;
     }
   }
@@ -97,7 +97,7 @@ class LocationService {
         return await getCurrentLocation();
       }
     } catch (e) {
-      print('位置情報の初期化でエラーが発生しました: $e');
+      debugPrint('位置情報の初期化でエラーが発生しました: $e');
       rethrow;
     }
   }
@@ -115,12 +115,12 @@ class LocationService {
       final success = await _backgroundService.startLocationService();
       
       if (success) {
-        print('バックグラウンド位置情報サービスを開始しました');
+        debugPrint('バックグラウンド位置情報サービスを開始しました');
       }
       
       return success;
     } catch (e) {
-      print('バックグラウンド位置情報サービスの開始でエラー: $e');
+      debugPrint('バックグラウンド位置情報サービスの開始でエラー: $e');
       return false;
     }
   }
@@ -131,12 +131,12 @@ class LocationService {
       final success = await _backgroundService.stopLocationService();
       
       if (success) {
-        print('バックグラウンド位置情報サービスを停止しました');
+        debugPrint('バックグラウンド位置情報サービスを停止しました');
       }
       
       return success;
     } catch (e) {
-      print('バックグラウンド位置情報サービスの停止でエラー: $e');
+      debugPrint('バックグラウンド位置情報サービスの停止でエラー: $e');
       return false;
     }
   }

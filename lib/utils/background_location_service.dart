@@ -3,6 +3,7 @@ import 'package:location/location.dart';
 import 'package:sanpo/import.dart';
 import 'package:sanpo/database/database_helper.dart';
 import 'package:sanpo/models/location_record.dart';
+import 'package:flutter/material.dart';
 
 /// locationプラグインを使用したバックグラウンド位置情報取得サービス
 class BackgroundLocationService {
@@ -85,7 +86,7 @@ class BackgroundLocationService {
   Future<void> _saveLocationData(LocationData locationData) async {
     try {
       if (locationData.latitude == null || locationData.longitude == null) {
-        print('無効な位置情報データ: $locationData');
+        debugPrint('無効な位置情報データ: $locationData');
         return;
       }
 
@@ -102,9 +103,9 @@ class BackgroundLocationService {
       );
 
       await _databaseHelper.insertLocationRecord(locationRecord);
-      print('バックグラウンド位置情報を保存: ${locationRecord.toString()}');
+      debugPrint('バックグラウンド位置情報を保存: ${locationRecord.toString()}');
     } catch (e) {
-      print('位置情報の保存でエラー: $e');
+      debugPrint('位置情報の保存でエラー: $e');
     }
   }
 
