@@ -39,6 +39,9 @@ class _MapView extends State<MapView> {
     }
   }
 
+  /// 位置情報が利用できない状態かどうかを判定
+  bool get _isLocationUnavailable => widget.selectedDate == null && _currentLocation == null;
+
   @override
   void initState()  {
     super.initState();
@@ -159,7 +162,7 @@ class _MapView extends State<MapView> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading || (widget.selectedDate == null && _currentLocation == null)) {
+    if (_isLoading || _isLocationUnavailable) {
       return Scaffold(
         appBar: AppBar(
           title: const Text('散歩マップ'),
