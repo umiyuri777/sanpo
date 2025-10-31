@@ -4,6 +4,7 @@ import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:sanpo/models/location_record.dart';
+import 'package:sanpo/models/photo_record.dart';
 
 /// SQLiteデータベースのヘルパークラス
 class DatabaseHelper {
@@ -27,8 +28,9 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -54,6 +56,35 @@ class DatabaseHelper {
         .execute('CREATE INDEX idx_timestamp ON location_records(timestamp)');
     await db.execute(
         'CREATE INDEX idx_background ON location_records(isBackground)');
+
+    // 写真用テーブル
+    await db.execute('''
+      CREATE TABLE photo_records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        latitude REAL NOT NULL,
+        longitude REAL NOT NULL,
+        timestamp INTEGER NOT NULL,
+        imagePath TEXT NOT NULL
+      )
+    ''');
+    await db.execute('CREATE INDEX idx_photo_time ON photo_records(timestamp)');
+  }
+
+  /// バージョンアップ時のマイグレーション
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS photo_records (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          latitude REAL NOT NULL,
+          longitude REAL NOT NULL,
+          timestamp INTEGER NOT NULL,
+          imagePath TEXT NOT NULL
+        )
+      ''');
+      await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_photo_time ON photo_records(timestamp)');
+    }
   }
 
   /// 位置情報を保存
@@ -181,6 +212,46 @@ class DatabaseHelper {
   Future<int> deleteAllLocationRecords() async {
     final db = await database;
     return await db.delete('location_records');
+  }
+
+  // ===== 写真レコード CRUD =====
+
+  Future<int> insertPhotoRecord(PhotoRecord record) async {
+    final db = await database;
+    try {
+      final id = await db.insert('photo_records', record.toMap());
+      return id;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<List<PhotoRecord>> getPhotoRecordsByDateRange(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final db = await database;
+    final maps = await db.query(
+      'photo_records',
+      where: 'timestamp BETWEEN ? AND ?',
+      whereArgs: [
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ],
+      orderBy: 'timestamp ASC',
+    );
+    return maps.map((m) => PhotoRecord.fromMap(m)).toList();
+  }
+
+  Future<List<PhotoRecord>> getAllPhotoRecords() async {
+    final db = await database;
+    final maps = await db.query('photo_records', orderBy: 'timestamp DESC');
+    return maps.map((m) => PhotoRecord.fromMap(m)).toList();
+  }
+
+  Future<int> deletePhotoRecord(int id) async {
+    final db = await database;
+    return await db.delete('photo_records', where: 'id = ?', whereArgs: [id]);
   }
 
   /// データベースを閉じる
