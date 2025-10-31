@@ -1,0 +1,91 @@
+name: Check Process
+
+on:
+  # main ブランチ への Pull Request を対象にする
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  # Lint失敗時にコメントを残すための権限を追加
+  pull-requests: write
+
+jobs:
+  lint:
+    name: Run Flutter Lints
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # LintのPRコメントのヘッダ
+      LINT_COMMENT_HEADER: "### :robot: Flutter Lint Results"
+    steps:
+      # Flutter SDKをセットアップ
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      # 必要なパッケージをインストール
+      - name: Install dependencies
+        run: flutter pub get
+
+      # flutter analyze を実行し、結果をログに出力
+      - name: Run Flutter Analyze
+        run: |
+          flutter analyze --no-pub > lint-report.txt || true
+
+      # 既存のLintコメントを削除
+      - name: Remove Old Lint Comments
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COMMENTS=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            repos/${{ github.repository }}/issues/${{ github.event.number }}/comments --jq '.[].id')
+          for ID in $COMMENTS; do
+            BODY=$(gh api \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              repos/${{ github.repository }}/issues/comments/$ID --jq '.body')
+            if [[ $BODY == *"${{ env.LINT_COMMENT_HEADER }}"* ]]; then
+              gh api \
+                --method DELETE \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                repos/${{ github.repository }}/issues/comments/$ID
+            fi
+          done
+
+      # Lintエラーがある場合にPRコメントを投稿
+      - name: Post Lint Results to PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # issueがあるか確認(error,warning,info全て検出)
+          if grep -qE 'error|warning|info' lint-report.txt; then
+            # 結果を整形してコメント用に保存
+            echo "${{ env.LINT_COMMENT_HEADER }}" > comment.md
+            echo '```' >> comment.md
+            cat lint-report.txt >> comment.md
+            echo '```' >> comment.md
+
+            # PRにコメントを投稿
+            gh pr comment ${{ github.event.number }} --body-file comment.md
+
+            # CIを失敗させる
+            exit 1
+          else
+            echo "${{ env.LINT_COMMENT_HEADER }}" > comment.md
+            echo '```' >> comment.md
+            echo 'No issues found!' >> comment.md
+            echo '```' >> comment.md
+
+            # PRにコメントを投稿
+            gh pr comment ${{ github.event.number }} --body-file comment.md
+          fi
