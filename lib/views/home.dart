@@ -44,7 +44,7 @@ class _HomeViewState extends State<HomeView> {
     try {
       await _locationService.requestLocationPermission();
     } catch (e) {
-      print('権限要求エラー: $e');
+      debugPrint('権限要求エラー: $e');
     }
   }
 
@@ -54,7 +54,7 @@ class _HomeViewState extends State<HomeView> {
           setState(() => _currentLocation = value);
           _updateLocationCount(); // 件数を更新
         })
-        .catchError((error) => print('位置情報取得エラー: $error'));
+        .catchError((error) => debugPrint('位置情報取得エラー: $error'));
   }
 
   /// バックグラウンド位置情報サービスを開始
@@ -75,7 +75,7 @@ class _HomeViewState extends State<HomeView> {
         );
       }
     } catch (e) {
-      print('バックグラウンドサービス開始エラー: $e');
+      debugPrint('バックグラウンドサービス開始エラー: $e');
     }
   }
 
@@ -93,7 +93,7 @@ class _HomeViewState extends State<HomeView> {
         );
       }
     } catch (e) {
-      print('バックグラウンドサービス停止エラー: $e');
+      debugPrint('バックグラウンドサービス停止エラー: $e');
     }
   }
 
@@ -136,7 +136,7 @@ class _HomeViewState extends State<HomeView> {
         ),
       );
     } catch (e) {
-      print('位置情報表示エラー: $e');
+      debugPrint('位置情報表示エラー: $e');
     }
   }
 

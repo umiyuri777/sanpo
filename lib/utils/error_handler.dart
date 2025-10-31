@@ -1,8 +1,10 @@
+import 'package:flutter/material.dart';
+
 /// 位置情報関連のエラーハンドリングユーティリティ
 class LocationErrorHandler {
   /// エラーをログ出力し、再スローする
   static void handleError(String operation, dynamic error) {
-    print('$operation でエラーが発生しました: $error');
+    debugPrint('$operation でエラーが発生しました: $error');
   }
 
   /// 非同期操作のエラーをハンドリングして結果を返す
@@ -33,6 +35,6 @@ class LocationErrorHandler {
 
   /// 成功ログを出力
   static void logSuccess(String operation) {
-    print('$operation が完了しました');
+    debugPrint('$operation が完了しました');
   }
 } 

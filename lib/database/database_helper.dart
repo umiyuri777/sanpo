@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:sanpo/models/location_record.dart';
 import 'package:sanpo/models/photo_record.dart';
+import 'package:flutter/material.dart';
 
 /// SQLiteデータベースのヘルパークラス
 class DatabaseHelper {
@@ -92,10 +93,10 @@ class DatabaseHelper {
     final db = await database;
     try {
       final id = await db.insert('location_records', record.toMap());
-      print('位置情報を保存しました: ID=$id, ${record.toString()}');
+      debugPrint('位置情報を保存しました: ID=$id, ${record.toString()}');
       return id;
     } catch (e) {
-      print('位置情報の保存でエラーが発生しました: $e');
+      debugPrint('位置情報の保存でエラーが発生しました: $e');
       rethrow;
     }
   }
@@ -111,9 +112,9 @@ class DatabaseHelper {
 
     try {
       await batch.commit();
-      print('${records.length}件の位置情報を一括保存しました');
+      debugPrint('${records.length}件の位置情報を一括保存しました');
     } catch (e) {
-      print('位置情報の一括保存でエラーが発生しました: $e');
+      debugPrint('位置情報の一括保存でエラーが発生しました: $e');
       rethrow;
     }
   }

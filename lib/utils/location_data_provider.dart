@@ -1,4 +1,5 @@
 import 'package:location/location.dart';
+import 'package:flutter/material.dart';
 
 /// 位置情報取得の基本ロジックを提供するクラス
 class LocationDataProvider {
@@ -11,10 +12,10 @@ class LocationDataProvider {
   static Future<LocationData> getCurrentLocation() async {
     try {
       final locationData = await _location.getLocation();
-      print('位置情報を取得: ${locationData.latitude}, ${locationData.longitude}');
+      debugPrint('位置情報を取得: ${locationData.latitude}, ${locationData.longitude}');
       return locationData;
     } catch (e) {
-      print('位置情報取得エラー: $e');
+      debugPrint('位置情報取得エラー: $e');
       rethrow;
     }
   }
@@ -32,7 +33,7 @@ class LocationDataProvider {
         distanceFilter: distanceFilter,
       );
     } catch (e) {
-      print('位置情報設定変更エラー: $e');
+      debugPrint('位置情報設定変更エラー: $e');
       rethrow;
     }
   }
@@ -42,7 +43,7 @@ class LocationDataProvider {
     try {
       await _location.enableBackgroundMode(enable: enable);
     } catch (e) {
-      print('バックグラウンドモード設定エラー: $e');
+      debugPrint('バックグラウンドモード設定エラー: $e');
       rethrow;
     }
   }

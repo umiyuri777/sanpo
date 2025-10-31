@@ -94,7 +94,7 @@ class _MapView extends State<MapView> {
             LatLng(locationData.latitude ?? 0.0, locationData.longitude ?? 0.0);
       });
     } catch (e) {
-      print('位置情報の初期化でエラーが発生しました: $e');
+      debugPrint('位置情報の初期化でエラーが発生しました: $e');
     }
   }
 
@@ -118,11 +118,11 @@ class _MapView extends State<MapView> {
           });
         },
         onError: (error) {
-          print('前景位置情報ストリームのエラー: $error');
+          debugPrint('前景位置情報ストリームのエラー: $error');
         },
       );
     } catch (e) {
-      print('前景位置情報ストリームの開始に失敗: $e');
+      debugPrint('前景位置情報ストリームの開始に失敗: $e');
     }
   }
 
@@ -167,10 +167,10 @@ class _MapView extends State<MapView> {
       });
       // マップの初期表示は initialCenter に委ねる
       
-      print('${widget.selectedDate!.toString().split(' ')[0]}の位置情報を${locations.length}件読み込みました');
+      debugPrint('${widget.selectedDate!.toString().split(' ')[0]}の位置情報を${locations.length}件読み込みました');
       
     } catch (e) {
-      print('選択された日付の位置情報の読み込みでエラーが発生しました: $e');
+      debugPrint('選択された日付の位置情報の読み込みでエラーが発生しました: $e');
     }
   }
 
@@ -189,7 +189,7 @@ class _MapView extends State<MapView> {
           ..addEntries(photos.where((e) => e.id != null).map((e) => MapEntry(e.id!, e)));
       });
     } catch (e) {
-      print('写真の読み込みでエラーが発生しました: $e');
+      debugPrint('写真の読み込みでエラーが発生しました: $e');
     }
   }
 
@@ -278,7 +278,7 @@ class _MapView extends State<MapView> {
         );
       }
     } catch (e) {
-      print('写真の保存に失敗: $e');
+      debugPrint('写真の保存に失敗: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('写真の保存に失敗しました')),
