@@ -197,7 +197,7 @@ class _MapView extends State<MapView> {
   /// ルート（_routePoints）の近くで長押しされたかどうか判定（しきい値: メートル）
   bool _isNearRoute(LatLng pressed, {double thresholdMeters = 50}) {
     if (_routePoints.isEmpty) return false;
-    final distance = const Distance();
+    const distance = Distance();
     double minDist = double.infinity;
     for (final p in _routePoints) {
       final d = distance(pressed, p);
@@ -210,7 +210,7 @@ class _MapView extends State<MapView> {
   /// マップ長押しで写真を追加
   Future<void> _onMapLongPress(LatLng latLng) async {
     if (_routePoints.isEmpty || !_isNearRoute(latLng)) {
-      if (!context.mounted) return;
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('線の近くを長押しすると写真を追加できます')),
       );
@@ -272,13 +272,13 @@ class _MapView extends State<MapView> {
           _photoById[saved.id!] = saved;
         }
       });
-      if (!context.mounted) return;
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('写真を保存しました')),
       );
     } catch (e) {
       debugPrint('写真の保存に失敗: $e');
-      if (!context.mounted) return;
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('写真の保存に失敗しました')),
       );
@@ -525,7 +525,7 @@ class _MapView extends State<MapView> {
                     if (_isBackgroundServiceRunning) {
                       final success =
                           await _locationService.stopBackgroundLocationService();
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       if (success) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('バックグラウンドサービスを停止しました')),
@@ -538,7 +538,7 @@ class _MapView extends State<MapView> {
                     } else {
                       final success =
                           await _locationService.startBackgroundLocationService();
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       if (success) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('バックグラウンドサービスを開始しました')),

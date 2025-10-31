@@ -68,7 +68,7 @@ class _HomeViewState extends State<HomeView> {
         _isBackgroundServiceRunning = success;
       });
       
-      if (!context.mounted) return;
+      if (!mounted) return;
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('バックグラウンド位置情報サービスを開始しました')),
@@ -91,7 +91,7 @@ class _HomeViewState extends State<HomeView> {
         _isBackgroundServiceRunning = !success;
       });
       
-      if (!context.mounted) return;
+      if (!mounted) return;
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('バックグラウンド位置情報サービスを停止しました')),
