@@ -9,6 +9,7 @@ import 'package:sanpo/models/location_record.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:location/location.dart';
 import 'package:flutter_compass/flutter_compass.dart';
+import 'dart:ui' as ui;
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -429,7 +430,7 @@ class _MapView extends State<MapView> {
                 ),
               // 写真マーカー + ポップアップ
               if (_photoRecords.isNotEmpty)
-                PopupMarkerLayerWidget(
+                PopupMarkerLayer(
                   options: PopupMarkerLayerOptions(
                     popupController: _popupController,
                     markers: _buildPhotoMarkers(),
@@ -593,7 +594,7 @@ class _TrianglePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = color;
-    final path = Path()
+    final ui.Path path = ui.Path()
       ..moveTo(0, 0)
       ..lineTo(size.width, 0)
       ..lineTo(size.width / 2, size.height)

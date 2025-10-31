@@ -54,7 +54,10 @@ class _HomeViewState extends State<HomeView> {
           setState(() => _currentLocation = value);
           _updateLocationCount(); // 件数を更新
         })
-        .catchError((error) => debugPrint('位置情報取得エラー: $error'));
+        .catchError((error) {
+          debugPrint('位置情報取得エラー: $error');
+          return null;
+        });
   }
 
   /// バックグラウンド位置情報サービスを開始
