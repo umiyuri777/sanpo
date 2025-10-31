@@ -285,6 +285,31 @@ class _MapView extends State<MapView> {
     }
   }
 
+  /// 画像をフルスクリーンで表示（縦横どちらも対応、ピンチズーム可）
+  void _openPhotoViewer(PhotoRecord record) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (ctx) {
+        return GestureDetector(
+          onTap: () => Navigator.of(ctx).pop(),
+          child: Container(
+            color: Colors.black,
+            alignment: Alignment.center,
+            child: InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Image.file(
+                File(record.imagePath),
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   List<Marker> _buildPhotoMarkers() {
     return _photoRecords
         .where((e) => e.id != null)
@@ -444,7 +469,6 @@ class _MapView extends State<MapView> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Container(
-                              width: 220,
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(8),
@@ -457,11 +481,18 @@ class _MapView extends State<MapView> {
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
-                                child: Image.file(
-                                  File(rec.imagePath),
-                                  width: 220,
-                                  height: 160,
-                                  fit: BoxFit.cover,
+                                child: GestureDetector(
+                                  onTap: () => _openPhotoViewer(rec),
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 260,
+                                      maxHeight: 260,
+                                    ),
+                                    child: Image.file(
+                                      File(rec.imagePath),
+                                      fit: BoxFit.contain, // 元画像の縦横比を保持
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
