@@ -25,10 +25,6 @@ class _MapView extends State<MapView> {
   final DatabaseHelper _databaseHelper = DatabaseHelper();
   bool _isLoading = true;
   final MapController _mapController = MapController();
-  StreamSubscription<MapEvent>? _mapEventSubscription;
-  bool _isMapReady = false;
-  LatLng? _pendingCenter;
-  double _pendingZoom = 15.0;
   bool _isBackgroundServiceRunning = false;
   List<LocationRecord> _selectedDateLocations = [];
   List<LatLng> _routePoints = [];
@@ -43,26 +39,14 @@ class _MapView extends State<MapView> {
     }
   }
 
+  /// 位置情報が利用できない状態かどうかを判定
+  bool get _isLocationUnavailable => widget.selectedDate == null && _currentLocation == null;
+
   @override
   void initState()  {
     super.initState();
     // 初期化を開始
     _initialize();
-    
-    // 地図を描画しイベントを監視する
-    _mapEventSubscription = _mapController.mapEventStream.listen((event) {
-      if (!_isMapReady) {
-        _isMapReady = true;
-        if (_pendingCenter != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              _mapController.move(_pendingCenter!, _pendingZoom);
-              _pendingCenter = null;
-            }
-          });
-        }
-      }
-    });
 
     // バックグラウンドサービスの実行状態を取得
     _isBackgroundServiceRunning = _locationService.isBackgroundServiceRunning;
@@ -131,7 +115,6 @@ class _MapView extends State<MapView> {
   @override
   void dispose() {
     _locationSubscription?.cancel();
-    _mapEventSubscription?.cancel();
     super.dispose();
   }
 
@@ -168,20 +151,7 @@ class _MapView extends State<MapView> {
             .map((record) => LatLng(record.latitude, record.longitude))
             .toList();
       });
-      
-      // 位置情報がある場合は最初の地点に地図を移動（MapController準備後）
-      if (_routePoints.isNotEmpty) {
-        if (_isMapReady) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              _mapController.move(_routePoints.first, 15.0);
-            }
-          });
-        } else {
-          _pendingCenter = _routePoints.first;
-          _pendingZoom = 15.0;
-        }
-      }
+      // マップの初期表示は initialCenter に委ねる
       
       print('${widget.selectedDate!.toString().split(' ')[0]}の位置情報を${locations.length}件読み込みました');
       
@@ -192,7 +162,7 @@ class _MapView extends State<MapView> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
+    if (_isLoading || _isLocationUnavailable) {
       return Scaffold(
         appBar: AppBar(
           title: const Text('散歩マップ'),
@@ -222,11 +192,15 @@ class _MapView extends State<MapView> {
         children: [
           FlutterMap(
             mapController: _mapController,
-            options: const MapOptions(
-              // 名古屋駅の緯度経度です。
-              initialCenter: LatLng(35.170694, 136.881637),
+            options: MapOptions(
+              // 初期中心: 通常は現在地、カレンダー表示時は経路の先頭、なければ名古屋駅
+              initialCenter: widget.selectedDate == null
+                  ? (_currentLocation ?? const LatLng(35.170694, 136.881637))
+                  : (_routePoints.isNotEmpty
+                      ? _routePoints.first
+                      : const LatLng(35.170694, 136.881637)),
               initialZoom: 10.0,
-              interactionOptions: InteractionOptions(
+              interactionOptions: const InteractionOptions(
                 // 拡大縮小と回転を分離
                 rotationThreshold: 10.0, // 回転のための閾値を高く設定
                 enableMultiFingerGestureRace: true, // 複数指ジェスチャーの競合を有効化
@@ -400,19 +374,14 @@ class _MapView extends State<MapView> {
                   ? null
                   : () {
                       final target = _currentLocation!;
-                      if (_isMapReady) {
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (mounted) {
-                            _mapController.move(target, _mapController.camera.zoom);
-                          }
-                        });
-                      } else {
-                        _pendingCenter = target;
-                        _pendingZoom = _mapController.camera.zoom;
-                      }
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) {
+                          _mapController.move(target, _mapController.camera.zoom);
+                        }
+                      });
                     },
-              child: const Icon(Icons.my_location),
               tooltip: '現在地に移動',
+              child: const Icon(Icons.my_location),
             )
           : null,
     );
