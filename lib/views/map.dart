@@ -208,8 +208,7 @@ class _MapView extends State<MapView> {
 
   /// マップ長押しで写真を追加
   Future<void> _onMapLongPress(LatLng latLng) async {
-    if (widget.selectedDate != null) return; // 閲覧モードでは追加不可
-    if (!_isNearRoute(latLng)) {
+    if (_routePoints.isEmpty || !_isNearRoute(latLng)) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('線の近くを長押しすると写真を追加できます')),
