@@ -207,6 +207,26 @@ class _MapView extends State<MapView> {
     return minDist <= thresholdMeters;
   }
 
+  /// 写真に付与する時刻を決定
+  /// - カレンダー表示中は、長押し地点に最も近い記録地点の時刻を採用
+  /// - それ以外は現在時刻
+  DateTime _resolvePhotoTimestamp(LatLng at) {
+    if (widget.selectedDate != null && _selectedDateLocations.isNotEmpty) {
+      final distance = const Distance();
+      double minDist = double.infinity;
+      int minIndex = 0;
+      for (int i = 0; i < _routePoints.length; i++) {
+        final d = distance(at, _routePoints[i]);
+        if (d < minDist) {
+          minDist = d;
+          minIndex = i;
+        }
+      }
+      return _selectedDateLocations[minIndex].timestamp;
+    }
+    return DateTime.now();
+  }
+
   /// マップ長押しで写真を追加
   Future<void> _onMapLongPress(LatLng latLng) async {
     if (_routePoints.isEmpty || !_isNearRoute(latLng)) {
@@ -261,7 +281,7 @@ class _MapView extends State<MapView> {
       final record = PhotoRecord(
         latitude: latLng.latitude,
         longitude: latLng.longitude,
-        timestamp: DateTime.now(),
+        timestamp: _resolvePhotoTimestamp(latLng),
         imagePath: savePath,
       );
       final id = await _databaseHelper.insertPhotoRecord(record);
