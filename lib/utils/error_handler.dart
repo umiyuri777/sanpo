@@ -10,10 +10,10 @@ class LocationErrorHandler {
   /// 非同期操作のエラーをハンドリングして結果を返す
   static Future<T?> handleAsyncOperation<T>(
     String operation,
-    Future<T> Function() operation_func,
+    Future<T> Function() operationFunc,
   ) async {
     try {
-      return await operation_func();
+      return await operationFunc();
     } catch (e) {
       handleError(operation, e);
       return null;
@@ -23,10 +23,10 @@ class LocationErrorHandler {
   /// 非同期操作のエラーをハンドリングしてboolを返す
   static Future<bool> handleAsyncBoolOperation(
     String operation,
-    Future<bool> Function() operation_func,
+    Future<bool> Function() operationFunc,
   ) async {
     try {
-      return await operation_func();
+      return await operationFunc();
     } catch (e) {
       handleError(operation, e);
       return false;

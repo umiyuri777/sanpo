@@ -210,11 +210,10 @@ class _MapView extends State<MapView> {
   /// マップ長押しで写真を追加
   Future<void> _onMapLongPress(LatLng latLng) async {
     if (_routePoints.isEmpty || !_isNearRoute(latLng)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('線の近くを長押しすると写真を追加できます')),
-        );
-      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('線の近くを長押しすると写真を追加できます')),
+      );
       return;
     }
 
@@ -273,18 +272,16 @@ class _MapView extends State<MapView> {
           _photoById[saved.id!] = saved;
         }
       });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('写真を保存しました')),
-        );
-      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('写真を保存しました')),
+      );
     } catch (e) {
       debugPrint('写真の保存に失敗: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('写真の保存に失敗しました')),
-        );
-      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('写真の保存に失敗しました')),
+      );
     }
   }
 

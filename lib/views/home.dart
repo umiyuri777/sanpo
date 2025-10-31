@@ -68,6 +68,7 @@ class _HomeViewState extends State<HomeView> {
         _isBackgroundServiceRunning = success;
       });
       
+      if (!context.mounted) return;
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('バックグラウンド位置情報サービスを開始しました')),
@@ -90,6 +91,7 @@ class _HomeViewState extends State<HomeView> {
         _isBackgroundServiceRunning = !success;
       });
       
+      if (!context.mounted) return;
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('バックグラウンド位置情報サービスを停止しました')),
@@ -178,9 +180,9 @@ class _HomeViewState extends State<HomeView> {
               ),
               
               // 位置情報操作ボタン
-              ButtonBar(
+              OverflowBar(
                 alignment: MainAxisAlignment.center,
-                buttonPadding: const EdgeInsets.all(10),
+                spacing: 10,
                 children: [
                   SizedBox(
                     height: 50,
